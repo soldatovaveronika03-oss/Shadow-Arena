@@ -54,6 +54,33 @@ static func build_model(data: Dictionary) -> Node3D:
 		_part(root, CylinderMesh.new(), Vector3(side*0.68,0.28,0), Vector3(0.18,0.4,0.18), armor)
 	_part(root, PrismMesh.new(), Vector3(0,2.55,0), Vector3(0.42,0.5,0.42), glow)
 	_part(root, TorusMesh.new(), Vector3(0,0.08,0), Vector3(1.25,1.25,1.25), glow)
+	# Role-specific silhouettes make the roster readable even at a distance.
+	var role: String = str(data.role)
+	if role == "Танк":
+		_part(root, BoxMesh.new(), Vector3(0.92,1.35,0.0), Vector3(0.22,1.25,1.05), armor)
+		_part(root, SphereMesh.new(), Vector3(0,2.48,0), Vector3(0.9,0.28,0.75), dark)
+	elif role == "Маг" or role == "Поддержка":
+		_part(root, SphereMesh.new(), Vector3(-0.95,1.85,0), Vector3(0.34,0.34,0.34), glow)
+		_part(root, SphereMesh.new(), Vector3(0.95,1.85,0), Vector3(0.34,0.34,0.34), glow)
+		_part(root, CylinderMesh.new(), Vector3(0.88,1.1,0), Vector3(0.09,1.0,0.09), dark)
+	elif role == "Стрелок":
+		_part(root, PrismMesh.new(), Vector3(-0.82,1.85,0), Vector3(0.75,0.38,0.24), glow)
+		_part(root, PrismMesh.new(), Vector3(0.82,1.85,0), Vector3(0.75,0.38,0.24), glow)
+	elif role == "Убийца":
+		_part(root, PrismMesh.new(), Vector3(-0.85,1.0,-0.05), Vector3(0.16,0.9,0.18), glow)
+		_part(root, PrismMesh.new(), Vector3(0.85,1.0,-0.05), Vector3(0.16,0.9,0.18), glow)
+	else:
+		_part(root, BoxMesh.new(), Vector3(0.0,1.72,0.42), Vector3(0.82,0.16,0.2), glow)
+	# Elemental crown/halo accent; hue is unique for every hero.
+	var halo := MeshInstance3D.new()
+	var halo_mesh := TorusMesh.new()
+	halo_mesh.inner_radius = 0.42
+	halo_mesh.outer_radius = 0.5
+	halo.mesh = halo_mesh
+	halo.position = Vector3(0,2.82,0)
+	halo.rotation_degrees.x = 90
+	halo.material_override = glow
+	root.add_child(halo)
 	var weapon := BoxMesh.new()
 	weapon.size = Vector3(0.16,1.5,0.22)
 	_part(root, weapon, Vector3(0.95,1.25,-0.1), Vector3.ONE, glow)
