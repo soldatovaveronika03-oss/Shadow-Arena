@@ -84,7 +84,7 @@ func _make_tree(pos: Vector3, scale_factor: float) -> void:
     trunk_mesh.height = 3.2
     var trunk_mat := StandardMaterial3D.new()
     trunk_mat.albedo_color = Color(0.25, 0.16, 0.1)
-    trunk_material = trunk_mat
+    trunk_mesh.material = trunk_mat
     trunk.mesh = trunk_mesh
     trunk.position.y = 1.6
     tree.add_child(trunk)
