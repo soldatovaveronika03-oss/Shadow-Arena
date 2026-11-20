@@ -1,22 +1,17 @@
-# SHADOW ARENA — Unreal Engine 5
+# ATLAS WILDS
 
-Отдельный проект мобильной 3D-арены на Unreal Engine 5. Проект не связан с Lipa-Arena.
+Мобильный 3D survival/adventure-прототип на Godot 4.
 
-## Что уже добавлено в исходники
-- C++ GameMode, который создаёт базовую арену с полом и стенами.
-- Игровой персонаж с видом от третьего лица и камерой.
-- Базовое движение, прыжок и простая атака-трассировка.
-- Настройки осей управления для клавиатуры/геймпада и стандартный виртуальный джойстик Unreal для сенсорных устройств.
+## Состав
+- `project.godot` — настройки проекта и управления.
+- `scenes/Main.tscn` — главная сцена.
+- `scripts/Main.gd` — окружение, ландшафт, деревья и существа.
+- `scripts/Player.gd` — персонаж, движение, прыжок и камера.
+- `scripts/MobileHUD.gd` — экранные кнопки.
+- `scripts/Creature.gd` — поведение существ.
+- `.github/workflows/build-android.yml` — сборка Android APK через GitHub Actions.
 
-## Честный статус
-Это ранний greybox-прототип, а не законченная игра. Код ещё не проверен компиляцией в Unreal Editor. В репозитории пока нет созданной в редакторе карты .umap, полноценных моделей/анимаций, противников, игрового HUD с сенсорной кнопкой атаки, звука или APK.
+## Сборка APK
+Открой вкладку Actions и запусти workflow **Build ATLAS WILDS Android APK**. После успешной сборки скачай artifact `atlas-wilds-android-debug`.
 
-## Сборка на ПК
-1. Установить Unreal Engine 5.4 через Epic Games Launcher.
-2. Скачать репозиторий целиком и открыть ShadowArena.uproject.
-3. Сгенерировать файлы проекта и скомпилировать C++ в Unreal Editor.
-4. Создать/сохранить стартовую карту и назначить её в Project Settings → Maps & Modes.
-5. Установить и настроить Android SDK/NDK согласно документации Unreal Engine.
-6. Настроить Android-параметры проекта и выполнить Package Project → Android.
-
-Для настоящей проверки и сборки Android APK потребуется компьютер с Unreal Engine 5.4 и Android toolchain.
+Движок: Godot 4.4.1 в CI. Целевая архитектура Android: ARM64.
