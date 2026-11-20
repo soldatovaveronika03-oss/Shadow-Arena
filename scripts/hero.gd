@@ -27,6 +27,8 @@ var movement_acceleration := 30.0
 
 func _ready() -> void:
 	health = max_health
+	floor_snap_length = 1.2
+	floor_max_angle = deg_to_rad(50.0)
 	_build_character()
 	var collision := CollisionShape3D.new()
 	var capsule_shape := CapsuleShape3D.new()
