@@ -27,6 +27,13 @@ jobs:
           echo "JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
           echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+          if command -v sdkmanager >/dev/null 2>&1; then
+            yes | sdkmanager --sdk_root="$ANDROID_HOME" --licenses >/dev/null || true
+            sdkmanager --sdk_root="$ANDROID_HOME" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          else
+            echo "ERROR: Android sdkmanager was not found in the build container."
+            exit 1
+          fi
           mkdir -p "$HOME/.local/share/godot/export_templates/4.4.1.stable"
           wget -q https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz -O /tmp/godot-templates.tpz
           mkdir -p /tmp/godot-templates
