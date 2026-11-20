@@ -3,6 +3,9 @@
 #include "Engine/World.h"
 #include "Engine/StaticMeshActor.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/DirectionalLight.h"
+#include "Components/DirectionalLightComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/UObjectGlobals.h"
 
 AShadowArenaGameMode::AShadowArenaGameMode()
@@ -32,10 +35,16 @@ void AShadowArenaGameMode::BeginPlay()
         if (Material) Material->SetVectorParameterValue(TEXT("Color"), Color);
     };
 
-    // Greybox arena; the player starts at the origin and lands on the floor.
     SpawnBlock(FVector(0, 0, -110), FVector(18, 18, 1), FLinearColor(0.08f, 0.09f, 0.12f));
     SpawnBlock(FVector(-900, 0, 100), FVector(1, 18, 2), FLinearColor(0.04f, 0.05f, 0.08f));
     SpawnBlock(FVector(900, 0, 100), FVector(1, 18, 2), FLinearColor(0.04f, 0.05f, 0.08f));
     SpawnBlock(FVector(0, -900, 100), FVector(18, 1, 2), FLinearColor(0.04f, 0.05f, 0.08f));
     SpawnBlock(FVector(0, 900, 100), FVector(18, 1, 2), FLinearColor(0.04f, 0.05f, 0.08f));
+
+    ADirectionalLight* Sun = W->SpawnActor<ADirectionalLight>(FVector(0, 0, 800), FRotator(-45.0f, -35.0f, 0.0f));
+    if (Sun)
+    {
+        Sun->GetLightComponent()->SetIntensity(8.0f);
+        Sun->GetLightComponent()->SetLightColor(FColor(190, 205, 255));
+    }
 }
