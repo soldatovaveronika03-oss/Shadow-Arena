@@ -75,9 +75,9 @@ func _build_body() -> void:
 	for x in [-leg_x, leg_x]:
 		for z in [-leg_z, leg_z]:
 			var leg_pivot := Node3D.new()
-			leg_pivot.position = Vector3(x,-0.12,z)
+			leg_pivot.position = Vector3(x,-0.30 if not is_dragon else -0.25,z)
 			body_pivot.add_child(leg_pivot)
-			_add_part(leg_pivot, CylinderMesh.new(), Vector3(0,-0.28,0), Vector3(0.22,0.62,0.22) if not is_dragon else Vector3(0.32,0.9,0.32))
+			_add_part(leg_pivot, CylinderMesh.new(), Vector3(0,-0.32 if not is_dragon else -0.35,0), Vector3(0.22,0.62,0.22) if not is_dragon else Vector3(0.32,0.55,0.32))
 			leg_pivots.append(leg_pivot)
 
 	if is_dragon:
@@ -114,7 +114,9 @@ func _physics_process(delta: float) -> void:
 	think_time -= delta
 	var direction := Vector3.ZERO
 	var chasing := false
+	var engaged := false
 	if is_instance_valid(target) and global_position.distance_to(target.global_position) < aggro_range:
+		engaged = true
 		var diff := target.global_position-global_position
 		diff.y = 0.0
 		if diff.length() > attack_range:
@@ -131,7 +133,7 @@ func _physics_process(delta: float) -> void:
 
 	if direction == Vector3.ZERO and think_time > 0.0 and not is_instance_valid(target):
 		direction = wander_dir * 0.35
-	elif direction == Vector3.ZERO and think_time > 0.0 and not chasing and attack_anim_time <= 0.0:
+	elif direction == Vector3.ZERO and think_time > 0.0 and not engaged and attack_anim_time <= 0.0:
 		direction = wander_dir * 0.35
 
 	var moving := direction.length() > 0.08
