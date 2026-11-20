@@ -117,7 +117,7 @@ func _input(event: InputEvent) -> void:
 func _set_move_from_screen(pos: Vector2) -> void:
     var size := get_viewport().get_visible_rect().size
     var center := Vector2(size.x * 0.22, size.y * 0.78)
-    var radius := min(size.x, size.y) * 0.14
+    var radius: float = minf(size.x, size.y) * 0.14
     move_touch = ((pos - center) / radius).limit_length(1.0)
     move_touch.y = -move_touch.y
 
