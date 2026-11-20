@@ -167,12 +167,31 @@ func dash(direction: Vector2) -> void:
 func cast_skill() -> void:
 	if skill_cooldown > 0.0:
 		return
-	skill_cooldown = 8.0
+	skill_cooldown = 5.0
+	var effect := MeshInstance3D.new()
+	var ring := TorusMesh.new()
+	ring.inner_radius = 0.7
+	ring.outer_radius = 1.0
+	effect.mesh = ring
+	effect.position = Vector3(0,0.18,0)
+	var effect_material := StandardMaterial3D.new()
+	effect_material.albedo_color = Color(0.28,0.22,1.0,0.8)
+	effect_material.emission_enabled = true
+	effect_material.emission = Color(0.2,0.12,1.0)
+	effect_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	effect.material_override = effect_material
+	add_child(effect)
+	var pulse := create_tween()
+	pulse.tween_property(effect,"scale",Vector3(8,8,8),0.38)
+	pulse.tween_callback(effect.queue_free)
 	for node in get_tree().get_nodes_in_group("fighters"):
 		if node == self or not node is ArenaHero:
 			continue
-		if global_position.distance_to(node.global_position) < 6.0:
-			node.take_damage(65.0, self)
+		if node.team != team and global_position.distance_to(node.global_position) < 8.0:
+			node.take_damage(65.0,self)
+	for creature in get_tree().get_nodes_in_group("wild_creatures"):
+		if is_instance_valid(creature) and global_position.distance_to(creature.global_position) < 8.0:
+			creature.take_damage(65.0,self)
 
 func take_damage(amount: float, _source: Node = null) -> void:
 	if invulnerable > 0.0 or health <= 0.0:
