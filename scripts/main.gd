@@ -8,6 +8,7 @@ var joystick_touch := -1
 var attack_button: Button
 var skill_button: Button
 var dash_button: Button
+var heroes_button: Button
 var health_bar: ProgressBar
 var status_label: Label
 var match_time := 0.0
@@ -182,6 +183,8 @@ func _build_hud() -> void:
 	attack_button.pressed.connect(_attack)
 	skill_button.pressed.connect(_skill)
 	dash_button.pressed.connect(_dash)
+	heroes_button = _make_button(root,"ГЕРОИ",Vector2(-270,-245),Color(0.18,0.38,0.58))
+	heroes_button.pressed.connect(_open_heroes)
 	var joystick_hint := Label.new()
 	joystick_hint.text = "ДВИЖЕНИЕ"
 	joystick_hint.position = Vector2(42,-62)
@@ -290,3 +293,6 @@ func _on_hero_defeated() -> void:
 func _update_hud() -> void:
 	if status_label and not match_over:
 		status_label.text = "ВРАГИ: %d/3     ВРЕМЯ: %02d:%02d" % [kills,int(match_time)/60,int(match_time)%60]
+
+func _open_heroes() -> void:
+	get_tree().change_scene_to_file("res://scenes/hero_gallery.tscn")
