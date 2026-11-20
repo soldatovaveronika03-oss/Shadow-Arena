@@ -124,7 +124,7 @@ func _add_rune(pos: Vector3) -> void:
 func _spawn_fighters() -> void:
 	hero = ArenaHero.new()
 	hero.name = "Kairon"
-	hero.position = Vector3(0,0,8)
+	hero.position = Vector3(0,Wildlands.terrain_height(0,8)+0.08,8)
 	hero.team = 0
 	hero.max_health = 260
 	hero.health = 260
@@ -141,7 +141,8 @@ func _spawn_fighters() -> void:
 		enemy.health = enemy.max_health
 		enemy.attack_damage = 12 + i*3
 		enemy.move_speed = 3.2 + i*0.25
-		enemy.position = Vector3(-7+i*7,0,-7-(i%2)*3)
+		enemy.position = Vector3(-7+i*7,Wildlands.terrain_height(-7+i*7,-7-(i%2)*3)+0.08,-7-(i%2)*3)
+		enemy.target = hero
 		add_child(enemy)
 		enemy.add_to_group("fighters")
 		enemies.append(enemy)
@@ -155,7 +156,9 @@ func _spawn_wildlife() -> void:
 		wolf.health = 85.0
 		wolf.move_speed = 4.8
 		wolf.damage = 9.0
-		wolf.position = Vector3(rng.randf_range(-300,300),0,rng.randf_range(-300,300))
+		var wx := rng.randf_range(-300,300)
+		var wz := rng.randf_range(-300,300)
+		wolf.position = Vector3(wx,Wildlands.terrain_height(wx,wz)+0.08,wz)
 		wolf.target = hero
 		add_child(wolf)
 		wolf.add_to_group("wild_creatures")
@@ -166,7 +169,9 @@ func _spawn_wildlife() -> void:
 		bear.move_speed = 2.8
 		bear.damage = 22.0
 		bear.aggro_range = 15.0
-		bear.position = Vector3(rng.randf_range(-360,360),0,rng.randf_range(-360,360))
+		var bx := rng.randf_range(-360,360)
+		var bz := rng.randf_range(-360,360)
+		bear.position = Vector3(bx,Wildlands.terrain_height(bx,bz)+0.08,bz)
 		bear.target = hero
 		add_child(bear)
 		bear.add_to_group("wild_creatures")
@@ -179,7 +184,7 @@ func _spawn_wildlife() -> void:
 		dragon.damage = 38.0
 		dragon.aggro_range = 55.0
 		dragon.attack_range = 9.0
-		dragon.position = Vector3(-260+i*520,0,-320)
+		dragon.position = Vector3(-260+i*520,Wildlands.terrain_height(-260+i*520,-320)+0.08,-320)
 		dragon.target = hero
 		add_child(dragon)
 		dragon.add_to_group("wild_creatures")
@@ -220,16 +225,36 @@ func _build_hud() -> void:
 	dash_button.pressed.connect(_dash)
 	heroes_button = _make_button(root,"ГЕРОИ",Vector2(-270,-245),Color(0.18,0.38,0.58))
 	heroes_button.pressed.connect(_open_heroes)
-	var joystick_hint := Label.new()
-	joystick_hint.text = "ДВИЖЕНИЕ"
-	joystick_hint.position = Vector2(42,-62)
-	joystick_hint.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	joystick_hint.add_theme_color_override("font_color",Color(0.6,0.75,0.9,0.7))
-	root.add_child(joystick_hint)
+	var joystick_base := Panel.new()
+	joystick_base.name = "VirtualJoystickBase"
+	joystick_base.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	joystick_base.position = Vector2(34,-204)
+	joystick_base.size = Vector2(168,168)
+	joystick_base.mouse_filter = Control.MOUSE_FILTER_STOP
+	var base_style := StyleBoxFlat.new()
+	base_style.bg_color = Color(0.08,0.12,0.2,0.52)
+	base_style.border_color = Color(0.55,0.78,1.0,0.85)
+	base_style.set_border_width_all(3)
+	base_style.set_corner_radius_all(84)
+	joystick_base.add_theme_stylebox_override("panel",base_style)
+	root.add_child(joystick_base)
+	var joystick_knob := Panel.new()
+	joystick_knob.name = "VirtualJoystickKnob"
+	joystick_knob.size = Vector2(76,76)
+	joystick_knob.position = Vector2(46,46)
+	joystick_knob.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var knob_style := StyleBoxFlat.new()
+	knob_style.bg_color = Color(0.32,0.68,0.95,0.9)
+	knob_style.border_color = Color(0.85,0.95,1.0)
+	knob_style.set_border_width_all(3)
+	knob_style.set_corner_radius_all(38)
+	joystick_knob.add_theme_stylebox_override("panel",knob_style)
+	joystick_base.add_child(joystick_knob)
+	joystick_base.gui_input.connect(_on_joystick_gui_input.bind(joystick_base,joystick_knob))
 	var objective := Label.new()
-	objective.text = "ЦЕЛЬ: ПОБЕДИ ВСЕХ ПРОТИВНИКОВ"
+	objective.text = "СВОБОДНОЕ ИССЛЕДОВАНИЕ • ВЫЖИВАНИЕ"
 	objective.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	objective.position = Vector2(-180,18)
+	objective.position = Vector2(-220,18)
 	objective.add_theme_font_size_override("font_size",18)
 	objective.add_theme_color_override("font_color",Color(1,0.8,0.42))
 	root.add_child(objective)
@@ -253,31 +278,38 @@ func _make_button(parent: Control, caption: String, offset: Vector2, color: Colo
 	parent.add_child(b)
 	return b
 
-func _input(event: InputEvent) -> void:
-	if match_over:
-		return
+func _on_joystick_gui_input(event: InputEvent, base: Control, knob: Control) -> void:
 	if event is InputEventScreenTouch:
-		if event.pressed and event.position.x < get_viewport().get_visible_rect().size.x*0.48 and joystick_touch == -1:
-			joystick_touch = event.index
-			joystick_origin = event.position
-		elif not event.pressed and event.index == joystick_touch:
-			joystick_touch = -1
-			joystick_vector = Vector2.ZERO
-	elif event is InputEventScreenDrag and event.index == joystick_touch:
-		joystick_vector = (event.position-joystick_origin)/75.0
-		if joystick_vector.length() > 1.0:
-			joystick_vector = joystick_vector.normalized()
+		if event.pressed:
+			_update_joystick(event.position,base,knob)
+		else:
+			_reset_joystick(base,knob)
+		base.accept_event()
+	elif event is InputEventScreenDrag:
+		_update_joystick(event.position,base,knob)
+		base.accept_event()
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		if event.pressed and event.position.x < get_viewport().get_visible_rect().size.x*0.48:
-			joystick_touch = 999
-			joystick_origin = event.position
-		elif not event.pressed:
-			joystick_touch = -1
-			joystick_vector = Vector2.ZERO
-	elif event is InputEventMouseMotion and joystick_touch == 999:
-		joystick_vector = (event.position-joystick_origin)/75.0
-		if joystick_vector.length() > 1.0:
-			joystick_vector = joystick_vector.normalized()
+		if event.pressed:
+			_update_joystick(event.position,base,knob)
+		else:
+			_reset_joystick(base,knob)
+		base.accept_event()
+	elif event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		_update_joystick(event.position,base,knob)
+		base.accept_event()
+
+func _update_joystick(local_position: Vector2, base: Control, knob: Control) -> void:
+	var center := base.size * 0.5
+	var offset := local_position - center
+	var max_radius := 48.0
+	if offset.length() > max_radius:
+		offset = offset.normalized() * max_radius
+	joystick_vector = offset / max_radius
+	knob.position = center + offset - knob.size * 0.5
+
+func _reset_joystick(base: Control, knob: Control) -> void:
+	joystick_vector = Vector2.ZERO
+	knob.position = (base.size - knob.size) * 0.5
 
 func _process(delta: float) -> void:
 	if match_over:
@@ -327,9 +359,6 @@ func _on_health_changed(current: float, maximum: float) -> void:
 func _on_enemy_defeated() -> void:
 	kills += 1
 	_update_hud()
-	if kills >= 3:
-		match_over = true
-		status_label.text = "ПОБЕДА! АРЕНА ОЧИЩЕНА"
 
 func _on_hero_defeated() -> void:
 	match_over = true
@@ -337,7 +366,7 @@ func _on_hero_defeated() -> void:
 
 func _update_hud() -> void:
 	if status_label and not match_over:
-		status_label.text = "ВРАГИ: %d/3     ВРЕМЯ: %02d:%02d" % [kills,int(match_time)/60,int(match_time)%60]
+		status_label.text = "ПОБЕЖДЕНО ПРОТИВНИКОВ: %d     ВРЕМЯ: %02d:%02d" % [kills,int(match_time)/60,int(match_time)%60]
 
 func _open_heroes() -> void:
 	get_tree().change_scene_to_file("res://scenes/hero_gallery.tscn")
