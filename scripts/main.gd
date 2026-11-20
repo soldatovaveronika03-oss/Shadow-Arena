@@ -291,13 +291,17 @@ func _on_joystick_gui_input(event: InputEvent, base: Control, knob: Control) -> 
 		_update_joystick(event.position,base,knob)
 		base.accept_event()
 
-func _update_joystick(local_position: Vector2, base: Control, knob: Control) -> void:
+func _update_joystick(event_position: Vector2, base: Control, knob: Control) -> void:
+	# Touch positions arrive in viewport coordinates; convert them to joystick-local space.
+	var local_position := base.get_global_transform_with_canvas().affine_inverse() * event_position
 	var center := base.size * 0.5
 	var offset := local_position - center
-	var max_radius := 48.0
+	var max_radius := minf(base.size.x, base.size.y) * 0.34
 	if offset.length() > max_radius:
 		offset = offset.normalized() * max_radius
 	joystick_vector = offset / max_radius
+	if joystick_vector.length() < 0.12:
+		joystick_vector = Vector2.ZERO
 	knob.position = center + offset - knob.size * 0.5
 
 func _reset_joystick(base: Control, knob: Control) -> void:
