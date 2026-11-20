@@ -19,6 +19,7 @@ func _ready() -> void:
 	_spawn_fighters()
 	_build_hud()
 	hero.health_changed.connect(_on_health_changed)
+	_on_health_changed(hero.health, hero.max_health)
 	hero.defeated.connect(_on_hero_defeated)
 	for e in enemies:
 		e.defeated.connect(_on_enemy_defeated)
