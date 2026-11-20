@@ -175,19 +175,12 @@ func _spawn_wildlife() -> void:
 		bear.target = hero
 		add_child(bear)
 		bear.add_to_group("wild_creatures")
+	var dragon_scene: PackedScene = preload("res://scenes/Dragon.tscn")
 	for i in range(2):
-		var dragon := WildCreature.new()
-		dragon.species = "Дракон"
-		dragon.is_dragon = true
-		dragon.health = 900.0
-		dragon.move_speed = 5.2
-		dragon.damage = 38.0
-		dragon.aggro_range = 55.0
-		dragon.attack_range = 9.0
-		dragon.position = Vector3(-260+i*520,Wildlands.terrain_height(-260+i*520,-320)+0.08,-320)
+		var dragon := dragon_scene.instantiate() as DragonCreature
+		dragon.position = Vector3(-260+i*520,Wildlands.terrain_height(-260+i*520,-320)+0.8,-320)
 		dragon.target = hero
 		add_child(dragon)
-		dragon.add_to_group("wild_creatures")
 
 func _build_hud() -> void:
 	var layer := CanvasLayer.new()
