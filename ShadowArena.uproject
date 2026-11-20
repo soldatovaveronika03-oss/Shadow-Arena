@@ -1,0 +1,16 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.4",
+  "Category": "Games",
+  "Description": "SHADOW ARENA - Unreal Engine 5 Android arena prototype",
+  "Modules": [
+    {
+      "Name": "ShadowArena",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ],
+  "TargetPlatforms": [
+    "Android"
+  ]
+}
