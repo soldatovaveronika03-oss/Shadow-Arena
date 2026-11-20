@@ -21,6 +21,9 @@ var body_mesh: MeshInstance3D
 var health_fill: MeshInstance3D
 var label: Label3D
 var invulnerable := 0.0
+var dash_time := 0.0
+var dash_velocity := Vector3.ZERO
+var movement_acceleration := 30.0
 
 func _ready() -> void:
 	health = max_health
@@ -98,18 +101,25 @@ func _physics_process(delta: float) -> void:
 	dash_cooldown = maxf(0.0, dash_cooldown-delta)
 	skill_cooldown = maxf(0.0, skill_cooldown-delta)
 	invulnerable = maxf(0.0, invulnerable-delta)
+	dash_time = maxf(0.0, dash_time-delta)
 	var input_dir := joystick
 	if is_enemy:
 		input_dir = _enemy_direction(delta)
 	var direction := Vector3(input_dir.x, 0, input_dir.y)
 	if direction.length() > 1.0:
 		direction = direction.normalized()
-	velocity.x = direction.x * move_speed
-	velocity.z = direction.z * move_speed
+	if dash_time > 0.0:
+		velocity.x = dash_velocity.x
+		velocity.z = dash_velocity.z
+	else:
+		velocity.x = move_toward(velocity.x, direction.x * move_speed, movement_acceleration * delta)
+		velocity.z = move_toward(velocity.z, direction.z * move_speed, movement_acceleration * delta)
 	if direction.length() > 0.08:
 		look_at(global_position + direction, Vector3.UP)
-	velocity.y = 0.0
-	global_position.y = Wildlands.terrain_height(global_position.x,global_position.z)
+	if not is_on_floor():
+		velocity.y -= float(ProjectSettings.get_setting("physics/3d/default_gravity")) * delta
+	elif velocity.y < 0.0:
+		velocity.y = -0.5
 	move_and_slide()
 	global_position.x = clampf(global_position.x, -arena_limit, arena_limit)
 	global_position.z = clampf(global_position.z, -arena_limit, arena_limit)
@@ -146,7 +156,10 @@ func dash(direction: Vector2) -> void:
 	var d := Vector3(direction.x,0,direction.y)
 	if d.length() < 0.1:
 		d = -global_transform.basis.z
-	velocity = d.normalized() * 19.0
+	dash_velocity = d.normalized() * 19.0
+	velocity.x = dash_velocity.x
+	velocity.z = dash_velocity.z
+	dash_time = 0.24
 	invulnerable = 0.22
 
 func cast_skill() -> void:
