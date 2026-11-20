@@ -14,10 +14,13 @@ var status_label: Label
 var match_time := 0.0
 var kills := 0
 var match_over := false
+var follow_camera: Camera3D
+var world: Wildlands
 
 func _ready() -> void:
 	_build_world()
 	_spawn_fighters()
+	_spawn_wildlife()
 	_build_hud()
 	hero.health_changed.connect(_on_health_changed)
 	_on_health_changed(hero.health, hero.max_health)
@@ -28,6 +31,9 @@ func _ready() -> void:
 	_update_hud()
 
 func _build_world() -> void:
+	world = Wildlands.new()
+	world.name = "OpenWorld"
+	add_child(world)
 	var world_env := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
@@ -42,15 +48,7 @@ func _build_world() -> void:
 	sun.light_energy = 1.4
 	sun.shadow_enabled = true
 	add_child(sun)
-	var floor := MeshInstance3D.new()
-	var plane := PlaneMesh.new()
-	plane.size = Vector2(44,44)
-	floor.mesh = plane
-	var fm := StandardMaterial3D.new()
-	fm.albedo_color = Color(0.055,0.075,0.12)
-	fm.roughness = 0.9
-	floor.material_override = fm
-	add_child(floor)
+
 	var arena_ring := MeshInstance3D.new()
 	var torus := TorusMesh.new()
 	torus.inner_radius = 18.8
@@ -72,12 +70,11 @@ func _build_world() -> void:
 			if abs(x)+abs(z) > 2:
 				continue
 			_add_rune(Vector3(x*4.0,0.035,z*4.0))
-	var camera := Camera3D.new()
-	camera.position = Vector3(0,25,24)
-	camera.rotation_degrees = Vector3(-42,0,0)
-	camera.current = true
-	camera.fov = 55
-	add_child(camera)
+	follow_camera = Camera3D.new()
+	follow_camera.position = Vector3(0,25,24)
+	follow_camera.current = true
+	follow_camera.fov = 58
+	add_child(follow_camera)
 
 func _add_pillar(pos: Vector3, index: int) -> void:
 	var p := MeshInstance3D.new()
@@ -148,6 +145,44 @@ func _spawn_fighters() -> void:
 		add_child(enemy)
 		enemy.add_to_group("fighters")
 		enemies.append(enemy)
+
+func _spawn_wildlife() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 99172
+	for i in range(14):
+		var wolf := WildCreature.new()
+		wolf.species = "Волк"
+		wolf.health = 85.0
+		wolf.move_speed = 4.8
+		wolf.damage = 9.0
+		wolf.position = Vector3(rng.randf_range(-300,300),0,rng.randf_range(-300,300))
+		wolf.target = hero
+		add_child(wolf)
+		wolf.add_to_group("wild_creatures")
+	for i in range(5):
+		var bear := WildCreature.new()
+		bear.species = "Медведь"
+		bear.health = 240.0
+		bear.move_speed = 2.8
+		bear.damage = 22.0
+		bear.aggro_range = 15.0
+		bear.position = Vector3(rng.randf_range(-360,360),0,rng.randf_range(-360,360))
+		bear.target = hero
+		add_child(bear)
+		bear.add_to_group("wild_creatures")
+	for i in range(2):
+		var dragon := WildCreature.new()
+		dragon.species = "Дракон"
+		dragon.is_dragon = true
+		dragon.health = 900.0
+		dragon.move_speed = 5.2
+		dragon.damage = 38.0
+		dragon.aggro_range = 55.0
+		dragon.attack_range = 9.0
+		dragon.position = Vector3(-260+i*520,0,-320)
+		dragon.target = hero
+		add_child(dragon)
+		dragon.add_to_group("wild_creatures")
 
 func _build_hud() -> void:
 	var layer := CanvasLayer.new()
@@ -250,12 +285,16 @@ func _process(delta: float) -> void:
 	match_time += delta
 	if is_instance_valid(hero):
 		hero.joystick = joystick_vector
+		if is_instance_valid(follow_camera):
+			var desired := hero.global_position + Vector3(0,32,30)
+			follow_camera.global_position = follow_camera.global_position.lerp(desired,delta*3.0)
+			follow_camera.look_at(hero.global_position+Vector3(0,1,0),Vector3.UP)
 	_update_hud()
 
 func _attack() -> void:
 	if not is_instance_valid(hero):
 		return
-	var nearest: ArenaHero
+	var nearest: Node3D
 	var best := 3.5
 	for e in enemies:
 		if is_instance_valid(e):
@@ -263,7 +302,13 @@ func _attack() -> void:
 			if d < best:
 				best = d
 				nearest = e
-	if nearest:
+	for creature in get_tree().get_nodes_in_group("wild_creatures"):
+		if is_instance_valid(creature):
+			var d := hero.global_position.distance_to(creature.global_position)
+			if d < best:
+				best = d
+				nearest = creature
+	if nearest and nearest.has_method("take_damage"):
 		nearest.take_damage(hero.attack_damage,hero)
 
 func _skill() -> void:
