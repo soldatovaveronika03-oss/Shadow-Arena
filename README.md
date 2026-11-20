@@ -1,22 +1,29 @@
-# SHADOW ARENA — Godot Android prototype
+# SHADOW ARENA — Godot 4 Android prototype
 
-A mobile-first dark-fantasy 3D arena game made with Godot 4.
+A mobile-first dark-fantasy 3D action game.
 
-## Hero collection update
-- 30 original heroes across Fighter, Mage, Marksman, Assassin, Tank and Support roles.
-- 18+ elemental themes including fire, water, void, light, shadow, ice, storm, nature, time, crystal and more.
-- Every hero has a unique first skill, second skill and ultimate concept.
-- A 3D hero gallery creates individual stylized character models procedurally from Godot meshes and materials. Select any hero to inspect the model and read their abilities.
-- No paid assets or external model downloads are required for this prototype.
+## Open-world update
+- Expanded playable terrain to approximately **1000 × 1000 world units**.
+- Procedural rolling landscape with vertex-coloured ground, two lakes, distant rune spires and rocky outcrops.
+- Forest canopy and grass are rendered with MultiMesh instancing to reduce draw-call overhead on mobile devices.
+- Camera follows the player across the expanded map.
+- Wildlife: roaming wolf packs, territorial bears and two large dragon creatures.
+- Creatures use simple roaming, aggro and attack behaviours and can be damaged by the player's basic attack.
+- Player movement is no longer restricted to the original small arena.
 
-## Open on Android
-1. Install the official Godot 4 Android Editor.
-2. Download this branch as a ZIP and extract it.
-3. Import the folder containing project.godot in Godot Android Editor.
-4. Press Play. In the arena, use the new HEROES button to open the collection.
+## Hero collection
+- 30 original heroes, six combat roles and many elemental themes.
+- Every hero has a designed first skill, second skill and ultimate.
+- A procedural 3D hero gallery lets players inspect each model and read their abilities.
 
-## Honest status
-The gallery and procedural models are prototype-quality stylized 3D assets, not finished hand-sculpted AAA models. The 30 hero abilities are designed and documented in the roster; not all are yet wired into combat. The project must be opened and tested in Godot on the target phone before it can be called verified or packaged as an APK.
+## Android setup
+1. Install Godot 4 Android Editor.
+2. Download and extract this branch ZIP.
+3. Import the folder containing project.godot.
+4. Press Play.
+
+## Important testing notes
+This is a procedural prototype, not a finished photorealistic open-world release. Terrain, vegetation, wildlife and creature AI are generated from Godot primitives and scripts. The world update has been committed but has **not** been run through the Godot editor or profiled on the target phone in this environment. Large scenes can be demanding; lower-end devices may need fewer trees, grass instances, shadows or creatures. No APK has been built or verified from this update.
 
 ## Unity portability
-Hero concepts, names, roles, elemental themes, balance data and visual design can be reused. GDScript gameplay code will need to be ported to C# for Unity.
+The world layout, creature concepts, hero roster, balance data and design can be reused. Godot GDScript will need to be rewritten in C# for Unity.
