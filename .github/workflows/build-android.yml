@@ -17,11 +17,32 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install Java and Android export templates
+        run: |
+          apt-get update
+          apt-get install -y openjdk-17-jdk unzip wget
+          export JAVA_HOME="$(dirname "$(dirname "$(readlink -f "$(which javac)")")")"
+          export ANDROID_HOME=/usr/lib/android-sdk
+          export ANDROID_SDK_ROOT="$ANDROID_HOME"
+          echo "JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.4.1.stable"
+          wget -q https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz -O /tmp/godot-templates.tpz
+          mkdir -p /tmp/godot-templates
+          unzip -q /tmp/godot-templates.tpz -d /tmp/godot-templates
+          cp -a /tmp/godot-templates/templates/. "$HOME/.local/share/godot/export_templates/4.4.1.stable/"
+          mkdir -p "$HOME/.android"
+          keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+
       - name: Create build directory
         run: mkdir -p build
 
-      - name: Check Godot version
-        run: godot --version
+      - name: Check tools
+        run: |
+          godot --version
+          java -version
+          test -d "$ANDROID_HOME"
 
       - name: Import project resources
         run: godot --headless --editor --path . --quit
