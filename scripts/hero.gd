@@ -101,10 +101,8 @@ func _physics_process(delta: float) -> void:
 	velocity.z = direction.z * move_speed
 	if direction.length() > 0.08:
 		look_at(global_position + direction, Vector3.UP)
-	if not is_on_floor():
-		velocity.y -= 22.0 * delta
-	else:
-		velocity.y = -0.5
+	velocity.y = 0.0
+	global_position.y = 0.0
 	move_and_slide()
 	global_position.x = clampf(global_position.x, -arena_limit, arena_limit)
 	global_position.z = clampf(global_position.z, -arena_limit, arena_limit)
