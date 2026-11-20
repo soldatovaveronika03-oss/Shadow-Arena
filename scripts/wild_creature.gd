@@ -34,8 +34,8 @@ func _build_body() -> void:
 	body.height = 1.4 if not is_dragon else 2.8
 	_part(body,Vector3(0,1.0,0),Vector3(1.45,0.8,0.85))
 	_part(SphereMesh.new(),Vector3(0,1.15,-0.85),Vector3(0.58,0.58,0.58))
-	_part(ConeMesh.new(),Vector3(-0.28,1.55,-1.05),Vector3(0.22,0.48,0.22))
-	_part(ConeMesh.new(),Vector3(0.28,1.55,-1.05),Vector3(0.22,0.48,0.22))
+	_part(_cone_mesh(),Vector3(-0.28,1.55,-1.05),Vector3(0.22,0.48,0.22))
+	_part(_cone_mesh(),Vector3(0.28,1.55,-1.05),Vector3(0.22,0.48,0.22))
 	for x in [-0.48,0.48]:
 		for z in [-0.48,0.48]:
 			_part(CylinderMesh.new(),Vector3(x,0.48,z),Vector3(0.22,0.65,0.22))
@@ -43,8 +43,15 @@ func _build_body() -> void:
 		var wing := PrismMesh.new()
 		_part(wing,Vector3(-1.35,2.0,0.0),Vector3(1.9,0.16,1.25))
 		_part(wing,Vector3(1.35,2.0,0.0),Vector3(1.9,0.16,1.25))
-		_part(ConeMesh.new(),Vector3(0,1.1,1.9),Vector3(0.38,0.38,1.8))
+		_part(_cone_mesh(),Vector3(0,1.1,1.9),Vector3(0.38,0.38,1.8))
 		_part(SphereMesh.new(),Vector3(0,1.2,-1.9),Vector3(0.72,0.55,0.9))
+
+func _cone_mesh() -> CylinderMesh:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.0
+	mesh.bottom_radius = 0.5
+	mesh.height = 2.0
+	return mesh
 
 func _part(mesh: Mesh, pos: Vector3, scale_value: Vector3) -> void:
 	var node := MeshInstance3D.new()
