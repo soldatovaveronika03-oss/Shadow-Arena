@@ -25,6 +25,13 @@ var invulnerable := 0.0
 func _ready() -> void:
 	health = max_health
 	_build_character()
+	var collision := CollisionShape3D.new()
+	var capsule_shape := CapsuleShape3D.new()
+	capsule_shape.radius = 0.52
+	capsule_shape.height = 2.0
+	collision.shape = capsule_shape
+	collision.position.y = 1.0
+	add_child(collision)
 	health_changed.emit(health, max_health)
 
 func _build_character() -> void:
