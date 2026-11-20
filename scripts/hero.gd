@@ -16,7 +16,7 @@ var target: Node3D
 var team := 0
 var is_enemy := false
 var ai_timer := 0.0
-var arena_limit := 19.0
+var arena_limit := 495.0
 var body_mesh: MeshInstance3D
 var health_fill: MeshInstance3D
 var label: Label3D
@@ -102,7 +102,7 @@ func _physics_process(delta: float) -> void:
 	if direction.length() > 0.08:
 		look_at(global_position + direction, Vector3.UP)
 	velocity.y = 0.0
-	global_position.y = 0.0
+	global_position.y = Wildlands.terrain_height(global_position.x,global_position.z)
 	move_and_slide()
 	global_position.x = clampf(global_position.x, -arena_limit, arena_limit)
 	global_position.z = clampf(global_position.z, -arena_limit, arena_limit)
