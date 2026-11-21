@@ -17,42 +17,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Extract supplied wildlife models
-        run: |
-          mkdir -p assets
-          BEAR_ZIP=""
-          if [ -f ATLAS_WILDS_Polar_Bear_Enhanced.zip ]; then
-            BEAR_ZIP="ATLAS_WILDS_Polar_Bear_Enhanced.zip"
-          elif [ -f ATLAS_WILDS_Polar_Bear_3D.zip ]; then
-            BEAR_ZIP="ATLAS_WILDS_Polar_Bear_3D.zip"
-          fi
-          if [ -n "$BEAR_ZIP" ]; then
-            mkdir -p /tmp/atlas-bear
-            unzip -oq "$BEAR_ZIP" -d /tmp/atlas-bear
-            BEAR_MODEL="$(find /tmp/atlas-bear -type f -iname '*.glb' | head -n 1)"
-            if [ -n "$BEAR_MODEL" ]; then
-              cp "$BEAR_MODEL" assets/Polar_Bear.glb
-              echo "Polar bear model installed from $BEAR_MODEL."
-            else
-              echo "WARNING: No GLB model found in $BEAR_ZIP."
-            fi
-          else
-            echo "Polar bear ZIP not uploaded; game will use its placeholder."
-          fi
-          if [ -f ATLAS_WILDS_Ice_Dragon_3D.zip ]; then
-            mkdir -p /tmp/atlas-dragon
-            unzip -oq ATLAS_WILDS_Ice_Dragon_3D.zip -d /tmp/atlas-dragon
-            DRAGON_MODEL="$(find /tmp/atlas-dragon -type f -iname '*.glb' | head -n 1)"
-            if [ -n "$DRAGON_MODEL" ]; then
-              cp "$DRAGON_MODEL" assets/ATLAS_WILDS_Ice_Dragon.glb
-              echo "Ice dragon model installed from $DRAGON_MODEL."
-            else
-              echo "WARNING: No GLB model found in dragon ZIP."
-            fi
-          else
-            echo "Ice dragon ZIP not uploaded; game will use its placeholder."
-          fi
-
       - name: Install Java and Android export templates
         run: |
           apt-get update
