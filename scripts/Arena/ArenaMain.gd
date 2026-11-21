@@ -15,9 +15,9 @@ var hud: CanvasLayer
 var menu_layer: Control
 var status_label: Label
 var health_label: Label
-var cooldowns := [0.0, 0.0, 0.0, 0.0]
-var skill_damage := [105.0, 145.0, 190.0, 310.0]
-var skill_radius := [4.0, 5.0, 6.5, 8.0]
+var cooldowns := [0.0, 0.0, 0.0, 0.0, 0.0]
+var skill_damage := [0.0, 105.0, 145.0, 190.0, 310.0]
+var skill_radius := [0.0, 4.0, 5.0, 6.5, 8.0]
 
 func _ready() -> void:
     _build_world()
