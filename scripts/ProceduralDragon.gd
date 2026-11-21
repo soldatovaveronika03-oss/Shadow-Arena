@@ -43,8 +43,6 @@ func _part(parent: Node3D, mesh: Mesh, pos: Vector3, scale: Vector3, material: M
         (mesh as SphereMesh).material = material
     elif mesh is CylinderMesh:
         (mesh as CylinderMesh).material = material
-    elif mesh is ConeMesh:
-        (mesh as ConeMesh).material = material
     parent.add_child(node)
     return node
 
@@ -55,10 +53,11 @@ func _sphere(parent: Node3D, label: String, pos: Vector3, size: Vector3, materia
     _part(parent, mesh, pos, size, material, label)
 
 func _horn(parent: Node3D, label: String, pos: Vector3, height: float, material: Material, lean: float) -> void:
-    var mesh := ConeMesh.new()
+    var mesh := CylinderMesh.new()
     mesh.top_radius = 0.015
     mesh.bottom_radius = 0.16
     mesh.height = height
+    mesh.radial_segments = 10
     var node := _part(parent, mesh, pos, Vector3.ONE, material, label)
     node.rotation.z = lean
 
