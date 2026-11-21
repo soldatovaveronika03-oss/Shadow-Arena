@@ -6,7 +6,7 @@ on:
     branches: [ main, master ]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   export-android:
@@ -79,6 +79,13 @@ jobs:
           test -s assets/models/Royal_Vanguard.gltf
           test -s assets/models/Forest_Lane_Crossing.gltf
           echo "Original hero and forest lane GLTF assets generated."
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/models/*.gltf
+          if ! git diff --cached --quiet; then
+            git commit -m "Add generated fantasy GLTF models"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
 
       - name: Import project resources and validate scripts
         run: |
