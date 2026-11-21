@@ -1,10 +1,15 @@
 extends CharacterBody3D
 
-@export var kind: int = 1 # 1 grazer, 2 stalker, 3 glider prototype
+@export var kind: int = 1 # 1 passive, 2 hostile, 3 dragon
 @export var body_color: Color = Color(0.5, 0.7, 0.4)
 @export var move_speed: float = 1.8
 @export var detection_range: float = 12.0
 @export var flee_range: float = 5.0
+@export var model_path: String = ""
+@export var model_scale: float = 1.0
+@export var model_y_offset: float = 0.0
+@export var collision_radius: float = 0.5
+@export var collision_height: float = 1.6
 
 var home := Vector3.ZERO
 var destination := Vector3.ZERO
@@ -13,7 +18,7 @@ var player: Node3D
 
 func _ready() -> void:
     home = global_position
-    _make_placeholder_model()
+    _build_creature()
     _pick_destination()
     player = get_tree().get_first_node_in_group("player")
 
@@ -29,19 +34,19 @@ func _physics_process(delta: float) -> void:
         elif distance < detection_range and kind == 2:
             target = player.global_position
         elif distance < detection_range and kind == 3:
-            target = player.global_position + Vector3.UP * 2.0
+            target = player.global_position
 
     var flat := target - global_position
-    flat.y = 0
+    flat.y = 0.0
     if flat.length() > 0.6:
         velocity.x = flat.normalized().x * move_speed
         velocity.z = flat.normalized().z * move_speed
         rotation.y = lerp_angle(rotation.y, atan2(-flat.x, -flat.z), delta * 3.0)
     else:
-        velocity.x = move_toward(velocity.x, 0, move_speed * delta * 2)
-        velocity.z = move_toward(velocity.z, 0, move_speed * delta * 2)
+        velocity.x = move_toward(velocity.x, 0.0, move_speed * delta * 2.0)
+        velocity.z = move_toward(velocity.z, 0.0, move_speed * delta * 2.0)
         pause_time -= delta
-        if pause_time <= 0:
+        if pause_time <= 0.0:
             _pick_destination()
 
     if not is_on_floor():
@@ -51,19 +56,32 @@ func _physics_process(delta: float) -> void:
     move_and_slide()
 
 func _pick_destination() -> void:
-    var offset := Vector2(randf_range(-12, 12), randf_range(-12, 12))
-    destination = home + Vector3(offset.x, 0, offset.y)
+    var offset := Vector2(randf_range(-12.0, 12.0), randf_range(-12.0, 12.0))
+    destination = home + Vector3(offset.x, 0.0, offset.y)
     pause_time = randf_range(1.5, 4.0)
 
-func _make_placeholder_model() -> void:
+func _build_creature() -> void:
     var shape := CapsuleShape3D.new()
-    shape.radius = 0.55 if kind == 1 else 0.42
-    shape.height = 1.5 if kind == 1 else 1.2
+    shape.radius = collision_radius
+    shape.height = maxf(collision_height, collision_radius * 2.0)
     var collision := CollisionShape3D.new()
     collision.shape = shape
     collision.position.y = shape.height * 0.5
     add_child(collision)
 
+    if not model_path.is_empty() and ResourceLoader.exists(model_path):
+        var packed_model := load(model_path) as PackedScene
+        if packed_model != null:
+            var model := packed_model.instantiate() as Node3D
+            if model != null:
+                model.scale = Vector3.ONE * model_scale
+                model.position.y = model_y_offset
+                add_child(model)
+                return
+
+    _make_placeholder_model()
+
+func _make_placeholder_model() -> void:
     var body := MeshInstance3D.new()
     var mesh := SphereMesh.new()
     mesh.radius = 0.65 if kind == 1 else 0.48
@@ -73,7 +91,7 @@ func _make_placeholder_model() -> void:
     mat.roughness = 0.82
     mesh.material = mat
     body.mesh = mesh
-    body.position.y = 0.85
+    body.position.y = collision_height * 0.48
     body.scale = Vector3(1.0, 0.85, 1.35)
     add_child(body)
 
@@ -83,5 +101,5 @@ func _make_placeholder_model() -> void:
     head_mesh.height = 0.56
     head_mesh.material = mat
     head.mesh = head_mesh
-    head.position = Vector3(0, 1.15, -0.65)
+    head.position = Vector3(0.0, collision_height * 0.68, -0.65)
     add_child(head)

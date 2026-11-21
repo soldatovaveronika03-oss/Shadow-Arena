@@ -52,7 +52,7 @@ func _build_camera() -> void:
     add_child(camera_pivot)
     camera = Camera3D.new()
     camera.current = true
-    camera.fov = 75
+    camera.fov = 75.0
     camera_pivot.add_child(camera)
     _update_camera()
 
@@ -107,9 +107,9 @@ func _input(event: InputEvent) -> void:
         if drag.index == move_finger:
             _set_move_from_screen(drag.position)
         elif drag.index == look_finger:
-            var delta := drag.position - last_look
-            yaw -= delta.x * look_sensitivity
-            pitch = clamp(pitch - delta.y * look_sensitivity, -0.85, 0.55)
+            var drag_delta := drag.position - last_look
+            yaw -= drag_delta.x * look_sensitivity
+            pitch = clamp(pitch - drag_delta.y * look_sensitivity, -0.85, 0.55)
             last_look = drag.position
     elif event is InputEventKey and event.pressed and event.keycode == KEY_V:
         toggle_camera()
@@ -119,16 +119,15 @@ func _set_move_from_screen(pos: Vector2) -> void:
     var center := Vector2(size.x * 0.22, size.y * 0.78)
     var radius: float = minf(size.x, size.y) * 0.14
     move_touch = ((pos - center) / radius).limit_length(1.0)
-    move_touch.y = -move_touch.y
 
 func _update_camera() -> void:
     camera_pivot.rotation.y = yaw
     camera_pivot.rotation.x = pitch
     if first_person:
-        camera.position = Vector3(0, 0, 0)
+        camera.position = Vector3.ZERO
         visual.visible = false
     else:
-        camera.position = Vector3(0, 0.25, third_person_distance)
+        camera.position = Vector3(0.0, 0.25, third_person_distance)
         visual.visible = true
     camera.look_at(camera_pivot.global_position + (-camera_pivot.global_transform.basis.z * 8.0), Vector3.UP)
 
