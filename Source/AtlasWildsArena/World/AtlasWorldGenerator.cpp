@@ -37,10 +37,10 @@ AAtlasWorldGenerator::AAtlasWorldGenerator()
     if (ConeMesh.Succeeded()) TreeCrowns->SetStaticMesh(ConeMesh.Object);
     if (SphereMesh.Succeeded()) Hills->SetStaticMesh(SphereMesh.Object);
     Ground->SetRelativeLocation(FVector(0, 0, -80));
-    Ground->SetRelativeScale3D(FVector(90, 90, 1));
+    Ground->SetRelativeScale3D(FVector(600, 600, 1));
     River->SetRelativeLocation(FVector(0, 1100, -72));
     River->SetRelativeRotation(FRotator(0, 0, 18));
-    River->SetRelativeScale3D(FVector(4, 34, 1));
+    River->SetRelativeScale3D(FVector(3.5f, 300, 1));
 }
 
 void AAtlasWorldGenerator::OnConstruction(const FTransform& Transform)
@@ -70,7 +70,7 @@ void AAtlasWorldGenerator::BuildWorld()
             if (Random.FRand() < 0.38f)
             {
                 const float H = Random.FRandRange(250.f, 520.f);
-                TreeTrunks->AddInstance(FTransform(FRotator(0, Random.FRandRange(0, 360), 0), P + FVector(0,0,H*0.25f), FVector(0.8f,0.8f,H/100.f)));
+                TreeTrunks->AddInstance(FTransform(FRotator(0, Random.FRandRange(0, 360), 0), P + FVector(0,0,H*0.5f), FVector(0.8f,0.8f,H/100.f)));
                 TreeCrowns->AddInstance(FTransform(FRotator(0, Random.FRandRange(0, 360), 0), P + FVector(0,0,H+100.f), FVector(Random.FRandRange(1.8f,2.8f),Random.FRandRange(1.8f,2.8f),Random.FRandRange(2.5f,3.8f))));
             }
             if (Random.FRand() < 0.08f)
