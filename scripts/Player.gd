@@ -9,7 +9,6 @@ extends CharacterBody3D
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var move_touch := Vector2.ZERO
 var look_finger := -1
-var move_finger := -1
 var last_look := Vector2.ZERO
 var first_person := false
 var sprinting := false
@@ -64,8 +63,14 @@ func _physics_process(delta: float) -> void:
             jump_requested = true
         sprinting = Input.is_action_pressed("sprint")
 
-    var forward := -global_transform.basis.z
-    var right := global_transform.basis.x
+    # Movement follows camera direction, while camera rotation is controlled
+    # exclusively by a separate finger on the right half of the screen.
+    var forward := -camera_pivot.global_transform.basis.z
+    var right := camera_pivot.global_transform.basis.x
+    forward.y = 0.0
+    right.y = 0.0
+    forward = forward.normalized()
+    right = right.normalized()
     var direction := (right * input_vec.x + forward * -input_vec.y).normalized()
     var speed := sprint_speed if sprinting else walk_speed
     velocity.x = direction.x * speed
@@ -78,7 +83,6 @@ func _physics_process(delta: float) -> void:
     else:
         velocity.y = -0.1
     jump_requested = false
-
     move_and_slide()
 
     if direction.length() > 0.1:
@@ -87,26 +91,18 @@ func _physics_process(delta: float) -> void:
     _update_camera()
 
 func _input(event: InputEvent) -> void:
+    # The player script handles camera look ONLY. The HUD owns joystick input.
     if event is InputEventScreenTouch:
         var touch := event as InputEventScreenTouch
-        if touch.pressed:
-            if touch.position.x < get_viewport().get_visible_rect().size.x * 0.48 and move_finger == -1:
-                move_finger = touch.index
-                _set_move_from_screen(touch.position)
-            elif touch.position.x >= get_viewport().get_visible_rect().size.x * 0.48 and look_finger == -1:
-                look_finger = touch.index
-                last_look = touch.position
-        else:
-            if touch.index == move_finger:
-                move_finger = -1
-                move_touch = Vector2.ZERO
-            if touch.index == look_finger:
-                look_finger = -1
+        var width := get_viewport().get_visible_rect().size.x
+        if touch.pressed and touch.position.x >= width * 0.48 and look_finger == -1:
+            look_finger = touch.index
+            last_look = touch.position
+        elif not touch.pressed and touch.index == look_finger:
+            look_finger = -1
     elif event is InputEventScreenDrag:
         var drag := event as InputEventScreenDrag
-        if drag.index == move_finger:
-            _set_move_from_screen(drag.position)
-        elif drag.index == look_finger:
+        if drag.index == look_finger:
             var drag_delta := drag.position - last_look
             yaw -= drag_delta.x * look_sensitivity
             pitch = clamp(pitch - drag_delta.y * look_sensitivity, -0.85, 0.55)
@@ -114,11 +110,8 @@ func _input(event: InputEvent) -> void:
     elif event is InputEventKey and event.pressed and event.keycode == KEY_V:
         toggle_camera()
 
-func _set_move_from_screen(pos: Vector2) -> void:
-    var size := get_viewport().get_visible_rect().size
-    var center := Vector2(size.x * 0.22, size.y * 0.78)
-    var radius: float = minf(size.x, size.y) * 0.14
-    move_touch = ((pos - center) / radius).limit_length(1.0)
+func set_move_input(value: Vector2) -> void:
+    move_touch = value.limit_length(1.0)
 
 func _update_camera() -> void:
     camera_pivot.rotation.y = yaw
