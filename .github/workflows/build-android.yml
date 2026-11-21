@@ -17,6 +17,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Extract supplied wildlife models
+        run: |
+          mkdir -p assets
+          if [ -f ATLAS_WILDS_Polar_Bear_3D.zip ]; then
+            mkdir -p /tmp/atlas-bear
+            unzip -oq ATLAS_WILDS_Polar_Bear_3D.zip -d /tmp/atlas-bear
+            cp /tmp/atlas-bear/ATLAS_WILDS_Polar_Bear/Polar_Bear.glb assets/Polar_Bear.glb
+            echo "Polar bear model installed."
+          else
+            echo "Polar bear ZIP not uploaded yet; game will use its placeholder for now."
+          fi
+          if [ -f ATLAS_WILDS_Ice_Dragon_3D.zip ]; then
+            mkdir -p /tmp/atlas-dragon
+            unzip -oq ATLAS_WILDS_Ice_Dragon_3D.zip -d /tmp/atlas-dragon
+            cp /tmp/atlas-dragon/ATLAS_WILDS_Ice_Dragon.glb assets/ATLAS_WILDS_Ice_Dragon.glb
+            echo "Ice dragon model installed."
+          else
+            echo "Ice dragon ZIP not uploaded yet; game will use its placeholder for now."
+          fi
+
       - name: Install Java and Android export templates
         run: |
           apt-get update
@@ -42,7 +62,6 @@ jobs:
           mkdir -p "$HOME/.android"
           keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
 
-          # Tell Godot explicitly where the Android SDK, Java and debug keystore are.
           mkdir -p "$HOME/.config/godot"
           cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
           [gd_resource type="EditorSettings" format=3]
