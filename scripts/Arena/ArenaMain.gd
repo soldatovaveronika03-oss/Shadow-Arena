@@ -277,7 +277,7 @@ func _nearest_enemy(from: Vector3, radius: float) -> Node3D:
     var best_distance := radius
     for unit in units:
         if is_instance_valid(unit) and unit.team == 1 and unit.health > 0.0:
-            var d := from.distance_to(unit.global_position)
+            var d: float = from.distance_to(unit.global_position)
             if d < best_distance:
                 best_distance = d
                 best = unit
@@ -310,7 +310,7 @@ func _tower_fire() -> void:
         var best_distance := 12.0
         for unit in units:
             if is_instance_valid(unit) and unit.team != team and unit.health > 0.0:
-                var d := tower.global_position.distance_to(unit.global_position)
+                var d: float = tower.global_position.distance_to(unit.global_position)
                 if d < best_distance:
                     best_distance = d
                     best = unit
