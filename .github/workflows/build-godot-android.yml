@@ -43,7 +43,6 @@ jobs:
       - name: Verify APK
         run: |
           test -s GodotPrototype/build/ATLAS-WILDS-ARENA-test.apk
-          file GodotPrototype/build/ATLAS-WILDS-ARENA-test.apk
           ls -lh GodotPrototype/build/ATLAS-WILDS-ARENA-test.apk
 
       - name: Upload APK artifact
