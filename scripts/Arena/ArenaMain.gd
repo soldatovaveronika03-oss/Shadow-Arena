@@ -246,7 +246,10 @@ func _add_action_button(root: Control, caption: String, offset: Vector2, index: 
     action_buttons.append(button)
     root.add_child(button)
 
-func _on_action_pressed(index: int) -> void:\n    _use_skill(index)\n\nfunc _use_skill(index: int) -> void:
+func _on_action_pressed(index: int) -> void:
+    _use_skill(index)
+
+func _use_skill(index: int) -> void:
     if not match_started or not is_instance_valid(player) or player.health <= 0.0:
         return
     if cooldowns[index] > 0.0:
