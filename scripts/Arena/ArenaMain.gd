@@ -45,6 +45,13 @@ func _build_world() -> void:
     env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
     world_env.environment = env
     add_child(world_env)
+    var camera := Camera3D.new()
+    camera.name = "ArenaCamera"
+    camera.position = Vector3(0.0, 67.0, 54.0)
+    camera.current = true
+    camera.fov = 48.0
+    add_child(camera)
+    camera.look_at(Vector3(0.0, 0.0, 0.0), Vector3.UP)
     var sun := DirectionalLight3D.new()
     sun.rotation_degrees = Vector3(-52, -28, 0)
     sun.light_energy = 1.25
