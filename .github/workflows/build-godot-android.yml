@@ -28,6 +28,9 @@ jobs:
           cp -a /root/.config/godot ~/.config/godot
           cp -a /root/.local/share/godot/export_templates/4.7.2.stable ~/.local/share/godot/export_templates/4.7.2.stable
 
+      - name: Stage uploaded GLB models
+        run: cp -a assets GodotPrototype/assets
+
       - name: Import project assets
         run: |
           godot --headless --editor --path GodotPrototype --quit
