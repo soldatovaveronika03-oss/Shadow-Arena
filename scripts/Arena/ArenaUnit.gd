@@ -111,13 +111,15 @@ func _build_body() -> void:
     collision.position.y = 0.95
     add_child(collision)
     if is_player:
-        var dragon_script = load("res://scripts/ProceduralDragon.gd")
-        var dragon = Node3D.new()
-        dragon.set_script(dragon_script)
-        dragon.dragon_index = 0
-        dragon.body_scale = 0.52
-        dragon.position.y = 0.0
-        add_child(dragon)
+        # The player is now an original fantasy hero imported from a real GLTF asset.
+        var hero_scene := load("res://assets/models/Royal_Vanguard.gltf") as PackedScene
+        if hero_scene != null:
+            var hero_model := hero_scene.instantiate()
+            hero_model.name = "RoyalVanguardModel"
+            hero_model.scale = Vector3.ONE * 1.0
+            add_child(hero_model)
+        else:
+            push_error("Royal Vanguard GLTF could not be imported.")
     elif not name.begins_with("Minion_"):
         var champion := Node3D.new()
         champion.set_script(load("res://scripts/ProceduralChampion.gd"))
