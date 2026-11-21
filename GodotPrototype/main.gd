@@ -190,9 +190,16 @@ func _add_hold_button(layer: CanvasLayer, caption: String, pos: Vector2, button_
 	button.position = pos
 	button.size = button_size
 	button.add_theme_font_size_override("font_size", 27)
-	button.button_down.connect(func(): move_vector = direction)
-	button.button_up.connect(func(): if move_vector == direction: move_vector = Vector2.ZERO)
+	button.button_down.connect(_set_move.bind(direction))
+	button.button_up.connect(_clear_move.bind(direction))
 	layer.add_child(button)
+
+func _set_move(direction: Vector2) -> void:
+	move_vector = direction
+
+func _clear_move(direction: Vector2) -> void:
+	if move_vector == direction:
+		move_vector = Vector2.ZERO
 
 func _attack() -> void:
 	info_label.text = "Удар! Боевые способности будут добавлены в следующих сборках."
