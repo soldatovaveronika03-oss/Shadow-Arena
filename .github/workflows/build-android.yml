@@ -5,9 +5,6 @@ on:
   push:
     branches: [ main, master ]
 
-permissions:
-  contents: write
-
 jobs:
   export-android:
     runs-on: ubuntu-latest
@@ -41,7 +38,6 @@ jobs:
           cp -a /tmp/godot-templates/templates/. "$HOME/.local/share/godot/export_templates/4.4.1.stable/"
           mkdir -p "$HOME/.android"
           keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-
           mkdir -p "$HOME/.config/godot"
           cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
           [gd_resource type="EditorSettings" format=3]
@@ -53,8 +49,6 @@ jobs:
           export/android/debug_keystore_user = "androiddebugkey"
           export/android/debug_keystore_pass = "android"
           EOF
-
-          echo "Installed Android SDK packages:"
           ls -la "$ANDROID_HOME/platform-tools"
           ls -la "$ANDROID_HOME/platforms/android-34"
           ls -la "$ANDROID_HOME/build-tools/34.0.0"
@@ -78,14 +72,8 @@ jobs:
           python3 tools/generate_fantasy_assets.py
           test -s assets/models/Royal_Vanguard.gltf
           test -s assets/models/Forest_Lane_Crossing.gltf
-          echo "Original hero and forest lane GLTF assets generated."
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets/models/*.gltf
-          if ! git diff --cached --quiet; then
-            git commit -m "Add generated fantasy GLTF models"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
-          fi
+          echo "Generated original fantasy assets:"
+          ls -lh assets/models/*.gltf
 
       - name: Import project resources and validate scripts
         run: |
