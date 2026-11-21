@@ -5,6 +5,7 @@ const WORLD_SCALE: float = 400.0
 const PlayerScript = preload("res://scripts/Player.gd")
 const CreatureScript = preload("res://scripts/Creature.gd")
 const HUDScript = preload("res://scripts/MobileHUD.gd")
+const DragonScript = preload("res://scripts/ProceduralDragon.gd")
 
 func _ready() -> void:
     _create_environment()
@@ -24,6 +25,7 @@ func _ready() -> void:
         "res://assets/Polar_Bear.glb", 0.58, 0.68, 0.55, 1.9)
     _create_creature("IceDragon", Vector3(16, 1.0, -16), Color(0.55, 0.82, 0.96), 3,
         "res://assets/ATLAS_WILDS_Ice_Dragon.glb", 0.22, 1.05, 0.72, 2.1)
+    _create_dragon_pack()
 
     var hud := CanvasLayer.new()
     hud.name = "MobileHUD"
@@ -129,3 +131,21 @@ func _create_creature(creature_name: String, pos: Vector3, tint: Color, kind: in
     creature.collision_height = collision_height
     add_child(creature)
     creature.position = pos
+
+func _create_dragon_pack() -> void:
+    var positions := [
+        Vector3(24, 0, -20), Vector3(-27, 0, -23),
+        Vector3(34, 0, 14), Vector3(-35, 0, 18),
+        Vector3(8, 0, 34), Vector3(-12, 0, -42),
+        Vector3(48, 0, -4), Vector3(-49, 0, -8),
+        Vector3(4, 0, -58), Vector3(58, 0, 36)
+    ]
+    var sizes := [0.82, 0.68, 0.74, 0.72, 0.78, 0.7, 0.76, 0.73, 0.88, 0.92]
+    for i in range(10):
+        var dragon := Node3D.new()
+        dragon.name = "ProceduralDragon_%02d" % (i + 1)
+        dragon.set_script(DragonScript)
+        dragon.dragon_index = i
+        dragon.body_scale = sizes[i]
+        add_child(dragon)
+        dragon.position = positions[i]
