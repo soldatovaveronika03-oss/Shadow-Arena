@@ -9,6 +9,8 @@ var move_input := Vector2.ZERO
 var match_started := false
 var match_time := 0.0
 var player: ArenaUnit
+var arena_camera: Camera3D
+var action_buttons: Array[Button] = []
 var blue_core: StaticBody3D
 var red_core: StaticBody3D
 var hud: CanvasLayer
@@ -31,6 +33,18 @@ func _process(delta: float) -> void:
         cooldowns[i] = maxf(0.0, cooldowns[i] - delta)
     if is_instance_valid(player):
         health_label.text = "HP %d / %d" % [int(player.health), int(player.max_health)]
+        if is_instance_valid(arena_camera):
+            var desired := player.global_position + Vector3(0.0, 66.0, 52.0)
+            arena_camera.global_position = arena_camera.global_position.lerp(desired, minf(1.0, delta * 3.5))
+            arena_camera.look_at(player.global_position, Vector3.UP)
+    for i in range(action_buttons.size()):
+        var caption := ["АТАКА", "НАВЫК 1", "НАВЫК 2", "НАВЫК 3", "УЛЬТА"][i]
+        if i == 0:
+            action_buttons[i].text = caption
+        elif cooldowns[i] > 0.0:
+            action_buttons[i].text = "%s\n%.1f" % [caption, cooldowns[i]]
+        else:
+            action_buttons[i].text = caption
     status_label.text = "ATLAS WILDS ARENA     %02d:%02d     СИНИЕ %d : %d КРАСНЫЕ" % [int(match_time / 60.0), int(match_time) % 60, _team_alive(0), _team_alive(1)]
 
 func _build_world() -> void:
@@ -45,37 +59,36 @@ func _build_world() -> void:
     env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
     world_env.environment = env
     add_child(world_env)
-    var camera := Camera3D.new()
-    camera.name = "ArenaCamera"
-    camera.position = Vector3(0.0, 67.0, 54.0)
-    camera.current = true
-    camera.fov = 48.0
-    add_child(camera)
-    camera.look_at(Vector3(0.0, 0.0, 0.0), Vector3.UP)
+    arena_camera = Camera3D.new()
+    arena_camera.name = "ArenaCamera"
+    arena_camera.position = Vector3(0.0, 67.0, 54.0)
+    arena_camera.current = true
+    arena_camera.fov = 48.0
+    add_child(arena_camera)
+    arena_camera.look_at(Vector3.ZERO, Vector3.UP)
     var sun := DirectionalLight3D.new()
     sun.rotation_degrees = Vector3(-52, -28, 0)
     sun.light_energy = 1.25
     sun.shadow_enabled = true
     add_child(sun)
-    _box(self, "ArenaGround", Vector3(0, -0.6, 0), Vector3(112, 1.2, 76), Color(0.16, 0.28, 0.19), true)
-    _box(self, "River", Vector3(0, 0.02, 0), Vector3(8.5, 0.12, 68), Color(0.12, 0.42, 0.58), false)
-    for lane_z in [-25.0, 0.0, 25.0]:
-        _box(self, "Lane", Vector3(0, 0.04, lane_z), Vector3(96, 0.1, 5.2), Color(0.42, 0.39, 0.29), false)
-        for x in range(-42, 43, 7):
-            _make_rock(Vector3(float(x), 0.0, lane_z + 4.4))
+    _box(self, "ArenaGround", Vector3(0, -0.6, 0), Vector3(150, 1.2, 110), Color(0.16, 0.28, 0.19), true)
+    _box(self, "River", Vector3(0, 0.02, 0), Vector3(10.0, 0.12, 100), Color(0.12, 0.42, 0.58), false)
+    for lane_z in [-34.0, 0.0, 34.0]:
+        _box(self, "Lane", Vector3(0, 0.04, lane_z), Vector3(132, 0.1, 6.4), Color(0.42, 0.39, 0.29), false)
+        for x in range(-62, 63, 9):
+            _make_rock(Vector3(float(x), 0.0, lane_z + 5.5))
     for i in range(42):
-        var x := randf_range(-48.0, 48.0)
-        var z := randf_range(-34.0, 34.0)
+        var x := randf_range(-68.0, 68.0)
+        var z := randf_range(-50.0, 50.0)
         if absf(z) > 7.0:
             _make_tree(Vector3(x, 0.0, z))
-    blue_core = _make_core(-48.0, Color(0.2, 0.55, 1.0), "BlueCore")
-    red_core = _make_core(48.0, Color(1.0, 0.24, 0.18), "RedCore")
-    _make_tower(-34.0, -25.0, 0)
-    _make_tower(-34.0, 0.0, 0)
-    _make_tower(-34.0, 25.0, 0)
-    _make_tower(34.0, -25.0, 1)
-    _make_tower(34.0, 0.0, 1)
-    _make_tower(34.0, 25.0, 1)
+    blue_core = _make_core(-68.0, Color(0.2, 0.55, 1.0), "BlueCore")
+    red_core = _make_core(68.0, Color(1.0, 0.24, 0.18), "RedCore")
+    for lane_z in [-34.0, 0.0, 34.0]:
+        for x in [-48.0, -30.0, -12.0]:
+            _make_tower(x, lane_z, 0)
+        for x in [12.0, 30.0, 48.0]:
+            _make_tower(x, lane_z, 1)
 
 func _build_menu() -> void:
     menu_layer = Control.new()
@@ -145,7 +158,7 @@ func _spawn_team() -> void:
         unit.move_speed = 6.2 if i == 0 else 4.6
         add_child(unit)
         var side := -1.0 if team == 0 else 1.0
-        unit.global_position = Vector3(side * (32.0 if i == 0 else 29.0), 0.0, float((i % 5) - 2) * 2.2)
+        unit.global_position = Vector3(side * (57.0 if i == 0 else 54.0), 0.0, float((i % 5) - 2) * 2.8)
         units.append(unit)
         if i == 0:
             player = unit
@@ -210,7 +223,7 @@ func _build_hud() -> void:
     back.offset_right = -16
     back.offset_top = 18
     back.offset_bottom = 64
-    back.pressed.connect(func(): player.global_position = Vector3(-34, 0, 0))
+    back.pressed.connect(func(): player.global_position = Vector3(-62, 0, 0))
     root.add_child(back)
 
 func _add_action_button(root: Control, caption: String, offset: Vector2, index: int, tint: Color) -> void:
@@ -229,25 +242,63 @@ func _add_action_button(root: Control, caption: String, offset: Vector2, index: 
     style.bg_color = tint
     style.set_corner_radius_all(18)
     button.add_theme_stylebox_override("normal", style)
-    button.pressed.connect(func(): _use_skill(index))
+    button.pressed.connect(_on_action_pressed.bind(index))
+    action_buttons.append(button)
     root.add_child(button)
 
-func _use_skill(index: int) -> void:
-    if not is_instance_valid(player) or cooldowns[index] > 0.0:
+func _on_action_pressed(index: int) -> void:\n    _use_skill(index)\n\nfunc _use_skill(index: int) -> void:
+    if not match_started or not is_instance_valid(player) or player.health <= 0.0:
         return
-    var cooldown: float = [1.0, 5.0, 8.0, 18.0, 24.0][index]
+    if cooldowns[index] > 0.0:
+        status_label.text = "НАВЫК ПЕРЕЗАРЯЖАЕТСЯ"
+        return
+    var target_range: float = 8.0 if index == 0 else 34.0
+    var target: Node3D = _nearest_enemy(player.global_position, target_range)
+    if target == null:
+        status_label.text = "НЕТ ВРАГА В РАДИУСЕ — ПОДОЙДИ БЛИЖЕ"
+        return
+    var cooldown: float = [0.65, 5.0, 8.0, 18.0, 24.0][index]
     cooldowns[index] = cooldown
     if index == 0:
-        var target := _nearest_enemy(player.global_position, 4.0)
-        if target != null:
-            apply_damage(target, 90.0)
+        apply_damage(target, 105.0)
+        _show_hit_effect(target.global_position, 2.0, Color(1.0, 0.72, 0.22))
+        status_label.text = "УДАР ПО ЦЕЛИ"
         return
     var damage: float = skill_damage[index]
     var radius: float = skill_radius[index]
+    var impact_position := target.global_position
+    if index == 1:
+        # Dragon rush: leap toward the selected enemy and strike.
+        var direction := (target.global_position - player.global_position).normalized()
+        player.global_position += direction * minf(8.0, player.global_position.distance_to(target.global_position) - 2.0)
+        impact_position = target.global_position
+    _show_hit_effect(impact_position, radius, [Color.WHITE, Color(0.2, 0.75, 1.0), Color(0.3, 1.0, 0.65), Color(0.8, 0.25, 1.0), Color(1.0, 0.45, 0.12)][index])
     for enemy in units:
-        if is_instance_valid(enemy) and enemy.team != player.team and enemy.health > 0.0:
-            if player.global_position.distance_to(enemy.global_position) <= radius:
+        if is_instance_valid(enemy) and enemy is ArenaUnit and enemy.team != player.team and enemy.health > 0.0:
+            if impact_position.distance_to(enemy.global_position) <= radius + 2.0:
                 apply_damage(enemy, damage)
+    status_label.text = "НАВЫК %d: ПОПАДАНИЕ" % index
+
+func _show_hit_effect(pos: Vector3, radius: float, tint: Color) -> void:
+    var effect := MeshInstance3D.new()
+    var sphere := SphereMesh.new()
+    sphere.radius = 0.35
+    sphere.height = 0.7
+    var mat := StandardMaterial3D.new()
+    mat.albedo_color = tint
+    mat.emission_enabled = true
+    mat.emission = tint
+    mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+    mat.albedo_color.a = 0.62
+    sphere.material = mat
+    effect.mesh = sphere
+    effect.position = pos + Vector3.UP * 0.8
+    effect.scale = Vector3.ONE * maxf(1.0, radius * 0.65)
+    add_child(effect)
+    var tween := create_tween()
+    tween.tween_property(effect, "scale", Vector3.ONE * radius, 0.22)
+    tween.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.3)
+    tween.tween_callback(effect.queue_free)
 
 func apply_damage(target: Node, amount: float) -> void:
     if target is ArenaUnit:
@@ -299,7 +350,7 @@ func _spawn_minion_wave() -> void:
                 minion.attack_range = 2.0
                 minion.arena = self
                 add_child(minion)
-                minion.global_position = Vector3(-43.0 if team == 0 else 43.0, 0.0, lane + float(n) * 1.4)
+                minion.global_position = Vector3(-63.0 if team == 0 else 63.0, 0.0, lane + float(n) * 1.8)
                 units.append(minion)
 
 func _tower_fire() -> void:
