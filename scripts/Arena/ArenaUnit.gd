@@ -118,23 +118,25 @@ func _build_body() -> void:
         dragon.body_scale = 0.52
         dragon.position.y = 0.0
         add_child(dragon)
+    elif not name.begins_with("Minion_"):
+        var champion := Node3D.new()
+        champion.set_script(load("res://scripts/ProceduralChampion.gd"))
+        var hero_number := 0
+        var parts := name.split("_")
+        if parts.size() > 1:
+            hero_number = int(parts[1])
+        champion.set("champion_index", posmod(hero_number + team * 2, 5))
+        champion.set("team_color", Color(0.22, 0.58, 0.92) if team == 0 else Color(0.92, 0.26, 0.2))
+        add_child(champion)
     else:
         var body := MeshInstance3D.new()
         var mesh := CapsuleMesh.new()
-        mesh.radius = 0.48
-        mesh.height = 1.85
+        mesh.radius = 0.34
+        mesh.height = 1.25
         var material := StandardMaterial3D.new()
         material.albedo_color = Color(0.22, 0.58, 0.92) if team == 0 else Color(0.86, 0.24, 0.22)
         material.roughness = 0.68
         mesh.material = material
         body.mesh = mesh
-        body.position.y = 0.95
+        body.position.y = 0.65
         add_child(body)
-        var crest := MeshInstance3D.new()
-        var crest_mesh := SphereMesh.new()
-        crest_mesh.radius = 0.28
-        crest_mesh.height = 0.4
-        crest_mesh.material = material
-        crest.mesh = crest_mesh
-        crest.position = Vector3(0.0, 1.78, -0.12)
-        add_child(crest)
