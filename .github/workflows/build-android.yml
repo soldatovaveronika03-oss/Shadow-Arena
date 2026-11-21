@@ -116,6 +116,7 @@ jobs:
             echo "ERROR: Godot reported script errors; refusing to export a broken APK."
             exit 1
           fi
+        shell: bash
 
       - name: Export debug APK
         run: godot --headless --path . --export-debug "Android" build/atlas-wilds-debug.apk
