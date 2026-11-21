@@ -15,14 +15,14 @@ func _ready() -> void:
     add_child(player)
     player.position = Vector3(0, 1.1, 0)
 
-    _create_creature("Grazer", Vector3(7, 0.8, -8) * WORLD_SCALE, Color(0.62, 0.72, 0.48), 1)
-    _create_creature("Stalker", Vector3(-9, 0.8, -12) * WORLD_SCALE, Color(0.48, 0.52, 0.62), 2)
-    _create_creature("Glider", Vector3(12, 3.2, 8) * WORLD_SCALE, Color(0.7, 0.48, 0.34), 3)
+    _create_creature("Grazer", Vector3(7 * WORLD_SCALE, 0.8, -8 * WORLD_SCALE), Color(0.62, 0.72, 0.48), 1)
+    _create_creature("Stalker", Vector3(-9 * WORLD_SCALE, 0.8, -12 * WORLD_SCALE), Color(0.48, 0.52, 0.62), 2)
+    _create_creature("Glider", Vector3(12 * WORLD_SCALE, 3.2, 8 * WORLD_SCALE), Color(0.7, 0.48, 0.34), 3)
 
     # New wildlife models supplied for ATLAS WILDS.
-    _create_creature("PolarBear", Vector3(-15, 0.9, -7) * WORLD_SCALE, Color(0.85, 0.9, 0.94), 2,
+    _create_creature("PolarBear", Vector3(-15 * WORLD_SCALE, 0.9, -7 * WORLD_SCALE), Color(0.85, 0.9, 0.94), 2,
         "res://assets/Polar_Bear.glb", 0.58, 0.68, 0.55, 1.9)
-    _create_creature("IceDragon", Vector3(16, 1.0, -16) * WORLD_SCALE, Color(0.55, 0.82, 0.96), 3,
+    _create_creature("IceDragon", Vector3(16 * WORLD_SCALE, 1.0, -16 * WORLD_SCALE), Color(0.55, 0.82, 0.96), 3,
         "res://assets/ATLAS_WILDS_Ice_Dragon.glb", 0.22, 1.05, 0.72, 2.1)
 
     var hud := CanvasLayer.new()
@@ -57,7 +57,7 @@ func _create_terrain() -> void:
 
     var mesh_instance := MeshInstance3D.new()
     var box := BoxMesh.new()
-    box.size = Vector3(180, 1, 180) * WORLD_SCALE
+    box.size = Vector3(180 * WORLD_SCALE, 1, 180 * WORLD_SCALE)
     var mat := StandardMaterial3D.new()
     mat.albedo_color = Color(0.19, 0.34, 0.19)
     mat.roughness = 1.0
