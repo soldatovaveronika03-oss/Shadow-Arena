@@ -108,6 +108,14 @@ jobs:
           java -version
           test -d "$ANDROID_HOME"
 
+      - name: Generate original fantasy GLTF assets
+        run: |
+          python3 -m pip install --break-system-packages trimesh numpy
+          python3 tools/generate_fantasy_assets.py
+          test -s assets/models/Royal_Vanguard.gltf
+          test -s assets/models/Forest_Lane_Crossing.gltf
+          echo "Original hero and forest lane GLTF assets generated."
+
       - name: Import project resources and validate scripts
         run: |
           set -o pipefail
@@ -126,5 +134,13 @@ jobs:
         with:
           name: atlas-wilds-android-debug
           path: build/atlas-wilds-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload generated GLTF assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-wilds-fantasy-gltf-assets
+          path: assets/models/*.gltf
           if-no-files-found: error
           retention-days: 14
