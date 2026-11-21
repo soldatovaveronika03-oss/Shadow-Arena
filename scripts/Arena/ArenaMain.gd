@@ -38,7 +38,7 @@ func _process(delta: float) -> void:
             arena_camera.global_position = arena_camera.global_position.lerp(desired, minf(1.0, delta * 3.5))
             arena_camera.look_at(player.global_position, Vector3.UP)
     for i in range(action_buttons.size()):
-        var caption := ["АТАКА", "НАВЫК 1", "НАВЫК 2", "НАВЫК 3", "УЛЬТА"][i]
+        var caption: String = ["АТАКА", "НАВЫК 1", "НАВЫК 2", "НАВЫК 3", "УЛЬТА"][i]
         if i == 0:
             action_buttons[i].text = caption
         elif cooldowns[i] > 0.0:
