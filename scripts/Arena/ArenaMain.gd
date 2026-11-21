@@ -27,7 +27,7 @@ func _process(delta: float) -> void:
     if not match_started:
         return
     match_time += delta
-    for i in range(4):
+    for i in range(5):
         cooldowns[i] = maxf(0.0, cooldowns[i] - delta)
     if is_instance_valid(player):
         health_label.text = "HP %d / %d" % [int(player.health), int(player.max_health)]
@@ -172,6 +172,7 @@ func _build_hud() -> void:
     _add_action_button(root, "НАВЫК 1", Vector2(-300, -95), 1, Color(0.2, 0.55, 0.95))
     _add_action_button(root, "НАВЫК 2", Vector2(-445, -95), 2, Color(0.22, 0.7, 0.8))
     _add_action_button(root, "НАВЫК 3", Vector2(-590, -95), 3, Color(0.65, 0.32, 0.88))
+    _add_action_button(root, "УЛЬТА", Vector2(-735, -95), 4, Color(0.95, 0.68, 0.16))
     var joystick := Control.new()
     joystick.position = Vector2(18, -180)
     joystick.anchor_top = 1.0
@@ -234,7 +235,7 @@ func _add_action_button(root: Control, caption: String, offset: Vector2, index: 
 func _use_skill(index: int) -> void:
     if not is_instance_valid(player) or cooldowns[index] > 0.0:
         return
-    var cooldown := [1.0, 5.0, 8.0, 18.0][index]
+    var cooldown: float = [1.0, 5.0, 8.0, 18.0, 24.0][index]
     cooldowns[index] = cooldown
     if index == 0:
         var target := _nearest_enemy(player.global_position, 4.0)
