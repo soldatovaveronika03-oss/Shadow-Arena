@@ -19,6 +19,17 @@ var yaw := 0.0
 var pitch := -0.20
 var info_label: Label
 var rng := RandomNumberGenerator.new()
+var joystick_touch := -1
+var joystick_center := Vector2.ZERO
+var joystick_radius := 76.0
+var joystick_knob: Panel
+var hero_visual: Node3D
+var hero_attack_timer := 0.0
+var hero_jump_requested := false
+var hero_run_phase := 0.0
+var ai_units: Array[Dictionary] = []
+var wing_parts: Array[Dictionary] = []
+var hero_parts: Array[Dictionary] = []
 
 func _ready() -> void:
 	rng.seed = 482019
@@ -243,9 +254,12 @@ func _build_player() -> void:
 			hero_model.name = "KaironUploaded3DModel"
 			visual_root.add_child(hero_model)
 			_fit_model_to_height(hero_model, 2.45)
+			hero_visual = hero_model
+			hero_parts = _collect_named_rig_parts(hero_model, ["arm", "leg", "wing", "tail", "hand"])
 			hero_loaded = true
 	if not hero_loaded:
 		_add_fallback_hero(visual_root)
+		hero_visual = visual_root
 
 	camera_pivot = Node3D.new()
 	camera_pivot.position.y = 1.55
@@ -312,21 +326,32 @@ func _add_fallback_hero(parent: Node3D) -> void:
 	parent.add_child(body)
 
 func _build_models() -> void:
-	# The first uploaded model is now Kairon's actual character mesh.
-	# The remaining two GLBs are displayed as creatures/landmarks in the world.
+	# The two uploaded creatures become independent AI-controlled units.
 	for i in range(1, MODEL_PATHS.size()):
 		if not ResourceLoader.exists(MODEL_PATHS[i]):
 			continue
 		var packed = load(MODEL_PATHS[i]) as PackedScene
 		if packed == null:
 			continue
-		var instance := packed.instantiate()
-		instance.name = "WorldCreature_" + str(i + 1)
-		var x := -13.0 if i == 1 else 13.0
-		var z := -20.0
-		_fit_model_to_height(instance, 3.0)
-		instance.position = Vector3(x, _terrain_height(x, z), z)
-		add_child(instance)
+		var unit := CharacterBody3D.new()
+		unit.name = "WildCreature_" + str(i + 1)
+		var x := -15.0 if i == 1 else 15.0
+		var z := -22.0
+		unit.position = Vector3(x, _terrain_height(x, z) + 0.9, z)
+		var shape_node := CollisionShape3D.new()
+		var capsule := CapsuleShape3D.new()
+		capsule.radius = 0.75
+		capsule.height = 1.8
+		shape_node.shape = capsule
+		shape_node.position.y = 0.9
+		unit.add_child(shape_node)
+		var model := packed.instantiate()
+		model.name = "CreatureModel"
+		_fit_model_to_height(model, 3.2)
+		unit.add_child(model)
+		add_child(unit)
+		var parts := _collect_named_rig_parts(model, ["wing", "arm", "leg", "tail"])
+		ai_units.append({"body": unit, "model": model, "parts": parts, "home": Vector3(x, 0, z), "phase": rng.randf_range(0.0, TAU), "state": "wander", "speed": rng.randf_range(2.0, 3.2), "dragon": i == 1})
 
 func _build_ui() -> void:
 	var layer := CanvasLayer.new()
@@ -339,72 +364,200 @@ func _build_ui() -> void:
 	layer.add_child(title)
 
 	info_label = Label.new()
-	info_label.text = "Кайрон • большой открытый мир • лес, трава и скалы"
+	info_label.text = "Кайрон • открытый мир • существа с искусственным интеллектом"
 	info_label.position = Vector2(30, 58)
 	info_label.add_theme_font_size_override("font_size", 16)
 	layer.add_child(info_label)
 
-	_add_hold_button(layer, "▲", Vector2(105, 510), Vector2(76, 76), Vector2.UP)
-	_add_hold_button(layer, "▼", Vector2(105, 650), Vector2(76, 60), Vector2.DOWN)
-	_add_hold_button(layer, "◀", Vector2(25, 585), Vector2(70, 65), Vector2.LEFT)
-	_add_hold_button(layer, "▶", Vector2(190, 585), Vector2(70, 65), Vector2.RIGHT)
+	var base := Panel.new()
+	base.name = "VirtualJoystickBase"
+	base.size = Vector2(164, 164)
+	base.position = Vector2(38, 520)
+	var base_style := StyleBoxFlat.new()
+	base_style.bg_color = Color(0.08, 0.12, 0.16, 0.48)
+	base_style.border_color = Color(0.85, 0.88, 0.92, 0.65)
+	base_style.set_border_width_all(3)
+	base_style.set_corner_radius_all(82)
+	base.add_theme_stylebox_override("panel", base_style)
+	layer.add_child(base)
 
-	var action := Button.new()
-	action.text = "АТАКА"
-	action.position = Vector2(1040, 570)
-	action.size = Vector2(170, 100)
-	action.add_theme_font_size_override("font_size", 23)
-	action.pressed.connect(_attack)
-	layer.add_child(action)
+	joystick_knob = Panel.new()
+	joystick_knob.name = "VirtualJoystickKnob"
+	joystick_knob.size = Vector2(72, 72)
+	joystick_knob.position = Vector2(46, 46)
+	var knob_style := StyleBoxFlat.new()
+	knob_style.bg_color = Color(0.83, 0.87, 0.93, 0.82)
+	knob_style.border_color = Color(1.0, 0.88, 0.55, 0.95)
+	knob_style.set_border_width_all(3)
+	knob_style.set_corner_radius_all(36)
+	joystick_knob.add_theme_stylebox_override("panel", knob_style)
+	base.add_child(joystick_knob)
+
+	var attack := Button.new()
+	attack.text = "АТАКА"
+	attack.position = Vector2(1080, 570)
+	attack.size = Vector2(150, 90)
+	attack.add_theme_font_size_override("font_size", 22)
+	attack.pressed.connect(_attack)
+	layer.add_child(attack)
+
+	var jump := Button.new()
+	jump.text = "ПРЫЖОК"
+	jump.position = Vector2(930, 610)
+	jump.size = Vector2(125, 65)
+	jump.add_theme_font_size_override("font_size", 17)
+	jump.pressed.connect(_jump)
+	layer.add_child(jump)
 
 	var hint := Label.new()
-	hint.text = "Свайп справа — вращение камеры"
-	hint.position = Vector2(790, 680)
+	hint.text = "Левый джойстик — движение • свайп справа — камера"
+	hint.position = Vector2(350, 680)
 	hint.add_theme_font_size_override("font_size", 13)
 	layer.add_child(hint)
 
-func _add_hold_button(layer: CanvasLayer, caption: String, pos: Vector2, button_size: Vector2, direction: Vector2) -> void:
-	var button := Button.new()
-	button.text = caption
-	button.position = pos
-	button.size = button_size
-	button.add_theme_font_size_override("font_size", 27)
-	button.button_down.connect(_set_move.bind(direction))
-	button.button_up.connect(_clear_move.bind(direction))
-	layer.add_child(button)
+func _update_joystick(screen_position: Vector2) -> void:
+	var offset := screen_position - joystick_center
+	if offset.length() > joystick_radius:
+		offset = offset.normalized() * joystick_radius
+	move_vector = Vector2(offset.x / joystick_radius, offset.y / joystick_radius)
+	if joystick_knob != null:
+		joystick_knob.position = Vector2(46, 46) + offset * 0.58
 
-func _set_move(direction: Vector2) -> void:
-	move_vector = direction
-
-func _clear_move(direction: Vector2) -> void:
-	if move_vector == direction:
-		move_vector = Vector2.ZERO
+func _reset_joystick() -> void:
+	move_vector = Vector2.ZERO
+	joystick_touch = -1
+	if joystick_knob != null:
+		joystick_knob.position = Vector2(46, 46)
 
 func _attack() -> void:
-	info_label.text = "Кайрон атакует! Следующий этап — анимации и боевые навыки."
+	hero_attack_timer = 0.42
+	info_label.text = "Кайрон наносит удар!"
+
+func _jump() -> void:
+	hero_jump_requested = true
+
+func _collect_named_rig_parts(root: Node, keywords: Array) -> Array[Dictionary]:
+	var found: Array[Dictionary] = []
+	_collect_named_rig_parts_recursive(root, keywords, found)
+	return found
+
+func _collect_named_rig_parts_recursive(node: Node, keywords: Array, found: Array[Dictionary]) -> void:
+	if node is Node3D:
+		var lower_name := node.name.to_lower()
+		for keyword in keywords:
+			if lower_name.contains(str(keyword)):
+				found.append({"node": node, "base": (node as Node3D).rotation})
+				break
+	for child in node.get_children():
+		_collect_named_rig_parts_recursive(child, keywords, found)
+
+func _animate_parts(parts: Array[Dictionary], phase: float, move_amount: float, attack_amount: float, flap_amount: float) -> void:
+	for part in parts:
+		var node = part.get("node")
+		if not is_instance_valid(node):
+			continue
+		var base: Vector3 = part.get("base", Vector3.ZERO)
+		var node_name := node.name.to_lower()
+		var animated := base
+		if node_name.contains("wing"):
+			animated.z += sin(phase * 2.8) * flap_amount * 0.9
+		elif node_name.contains("leg"):
+			animated.x += sin(phase * 8.0) * move_amount * 0.65
+		elif node_name.contains("arm") or node_name.contains("hand"):
+			animated.x += sin(phase * 8.0 + PI) * move_amount * 0.28
+			animated.y += attack_amount * 1.1
+		elif node_name.contains("tail"):
+			animated.y += sin(phase * 2.0) * 0.18
+		node.rotation = animated
 
 func _unhandled_input(event: InputEvent) -> void:
+	var viewport_size := get_viewport().get_visible_rect().size
+	joystick_center = Vector2(120, viewport_size.y - 120)
 	if event is InputEventScreenTouch:
-		if event.pressed and event.position.x > get_viewport().get_visible_rect().size.x * 0.42:
-			look_touch = event.index
+		if event.pressed:
+			if event.position.x < viewport_size.x * 0.43 and joystick_touch == -1:
+				joystick_touch = event.index
+				_update_joystick(event.position)
+			elif event.position.x >= viewport_size.x * 0.43:
+				look_touch = event.index
+				last_touch = event.position
+		else:
+			if event.index == joystick_touch:
+				_reset_joystick()
+			if event.index == look_touch:
+				look_touch = -1
+	elif event is InputEventScreenDrag:
+		if event.index == joystick_touch:
+			_update_joystick(event.position)
+		elif event.index == look_touch:
+			var delta = event.position - last_touch
+			yaw -= delta.x * 0.006
+			pitch = clampf(pitch - delta.y * 0.004, -0.72, 0.20)
+			camera_pivot.rotation = Vector3(pitch, yaw, 0)
 			last_touch = event.position
-		elif not event.pressed and event.index == look_touch:
-			look_touch = -1
-	elif event is InputEventScreenDrag and event.index == look_touch:
-		var delta = event.position - last_touch
-		yaw -= delta.x * 0.006
-		pitch = clampf(pitch - delta.y * 0.004, -0.72, 0.20)
-		camera_pivot.rotation = Vector3(pitch, yaw, 0)
-		last_touch = event.position
 	elif event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
 		yaw -= event.relative.x * 0.006
 		pitch = clampf(pitch - event.relative.y * 0.004, -0.72, 0.20)
 		camera_pivot.rotation = Vector3(pitch, yaw, 0)
 
+func _process(delta: float) -> void:
+	var moving := Vector2(player.velocity.x, player.velocity.z).length() > 0.35 if player != null else false
+	if moving:
+		hero_run_phase += delta * 9.0
+	if hero_attack_timer > 0.0:
+		hero_attack_timer = maxf(0.0, hero_attack_timer - delta)
+	var attack_mix := sin((0.42 - hero_attack_timer) / 0.42 * PI) if hero_attack_timer > 0.0 else 0.0
+	if hero_visual != null:
+		hero_visual.position.y = (sin(hero_run_phase * 2.0) * 0.055 if moving else 0.0)
+		hero_visual.rotation.z = (sin(hero_run_phase) * 0.035 if moving else 0.0) + attack_mix * 0.22
+		_animate_parts(hero_parts, hero_run_phase, 1.0 if moving else 0.0, attack_mix, 0.0)
+
+	for unit_data in ai_units:
+		var body: CharacterBody3D = unit_data["body"]
+		var model: Node3D = unit_data["model"]
+		if not is_instance_valid(body):
+			continue
+		var to_player := player.global_position - body.global_position
+		var distance := Vector2(to_player.x, to_player.z).length()
+		var state := "chase" if distance < 19.0 else "wander"
+		unit_data["state"] = state
+		var target_dir := Vector3.ZERO
+		if state == "chase" and distance > 2.6:
+			target_dir = Vector3(to_player.x, 0, to_player.z).normalized()
+		else:
+			var phase: float = unit_data["phase"]
+			phase += delta * 0.55
+			unit_data["phase"] = phase
+			var home: Vector3 = unit_data["home"]
+			var wander_target := Vector3(home.x + cos(phase) * 7.0, 0, home.z + sin(phase * 0.8) * 7.0)
+			target_dir = Vector3(wander_target.x - body.global_position.x, 0, wander_target.z - body.global_position.z).normalized()
+		var speed: float = unit_data["speed"]
+		body.velocity.x = target_dir.x * speed
+		body.velocity.z = target_dir.z * speed
+		if not body.is_on_floor():
+			body.velocity.y -= 24.0 * delta
+		else:
+			body.velocity.y = -0.1
+		body.move_and_slide()
+		var ground := _terrain_height(body.global_position.x, body.global_position.z)
+		if body.global_position.y < ground + 0.05:
+			body.global_position.y = ground + 0.05
+			body.velocity.y = 0.0
+		if target_dir.length() > 0.1:
+			body.rotation.y = lerp_angle(body.rotation.y, atan2(-target_dir.x, -target_dir.z), delta * 3.5)
+		var creature_phase: float = unit_data["phase"] + Time.get_ticks_msec() * 0.001 * 5.0
+		var is_dragon: bool = unit_data["dragon"]
+		model.position.y = sin(creature_phase * 2.0) * (0.12 if is_dragon else 0.035)
+		model.rotation.z = sin(creature_phase * 2.0) * 0.035
+		_animate_parts(unit_data["parts"], creature_phase, 1.0 if target_dir.length() > 0.1 else 0.0, 0.0, 1.0 if is_dragon else 0.0)
+
 func _physics_process(delta: float) -> void:
 	if player == null:
 		return
 	var input_dir := move_vector
+	if hero_jump_requested and player.is_on_floor():
+		player.velocity.y = 8.2
+	hero_jump_requested = false
 	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
 		input_dir.y -= 1.0
 	if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
