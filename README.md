@@ -1,17 +1,20 @@
-# ATLAS WILDS
+# ATLAS WILDS ARENA
 
-Мобильный 3D survival/adventure-прототип на Godot 4.
+Основной проект переводится на **Unreal Engine 5.5**.
 
-## Состав
-- `project.godot` — настройки проекта и управления.
-- `scenes/Main.tscn` — главная сцена.
-- `scripts/Main.gd` — окружение, ландшафт, деревья и существа.
-- `scripts/Player.gd` — персонаж, движение, прыжок и камера.
-- `scripts/MobileHUD.gd` — экранные кнопки.
-- `scripts/Creature.gd` — поведение существ.
-- `.github/workflows/build-android.yml` — сборка Android APK через GitHub Actions.
+## Структура
+- `AtlasWildsArena.uproject` — файл проекта Unreal Engine.
+- `Source/AtlasWildsArena` — C++ модуль и базовый персонаж от третьего лица с камерой.
+- `Config/` — настройки проекта и Android (Landscape, ARM64, пакет com.atlaswilds.arena).
+- `UnityProject/` — сохранённая прежняя заготовка Unity.
+- `assets/` — общая папка ресурсов; сохраняется для переноса совместимых моделей и текстур.
 
-## Сборка APK
-Открой вкладку Actions и запусти workflow **Build ATLAS WILDS Android APK**. После успешной сборки скачай artifact `atlas-wilds-android-debug`.
+## Первый запуск
+1. Установить Unreal Engine 5.5 на Windows.
+2. Установить Android SDK, NDK и JDK, совместимые с UE 5.5 (через Android Studio/Turnkey).
+3. Открыть `AtlasWildsArena.uproject`, сгенерировать файлы проекта и собрать C++ модуль.
+4. Создать стартовую карту и Blueprint-наследник `AtlasPlayerCharacter`, назначить его Default Pawn в GameMode.
+5. Настроить экранное управление и проверить проект на Android.
 
-Движок: Godot 4.4.1 в CI. Целевая архитектура Android: ARM64.
+## Важно
+Обычный GitHub Actions runner не содержит Unreal Engine. APK-сборку нельзя запустить на нём без отдельного установленного UE build environment и Android toolchain. Текущий репозиторий содержит стартовую основу UE5, а не готовую игру или APK.
