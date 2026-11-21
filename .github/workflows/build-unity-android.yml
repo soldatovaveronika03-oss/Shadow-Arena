@@ -1,0 +1,46 @@
+name: Build ATLAS WILDS Unity Android APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-unity-android:
+    name: Build Unity Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check Unity license secret
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        run: |
+          if [ -z "$UNITY_LICENSE" ]; then
+            echo "::error::UNITY_LICENSE secret is missing. Add a Unity Personal license file as a repository Actions secret named UNITY_LICENSE."
+            exit 1
+          fi
+
+      - name: Build Android APK with Unity
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        with:
+          projectPath: UnityProject
+          unityVersion: 6000.3.0f1
+          targetPlatform: Android
+          buildName: ATLAS-WILDS-ARENA
+          buildsPath: build
+          allowDirtyBuild: true
+
+      - name: Locate generated APK
+        run: |
+          find build -type f -name '*.apk' -print
+          test -n "$(find build -type f -name '*.apk' -print -quit)"
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-wilds-unity-android-apk
+          path: build/**/*.apk
+          if-no-files-found: error
+          retention-days: 14
