@@ -29,7 +29,7 @@ jobs:
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
           if command -v sdkmanager >/dev/null 2>&1; then
             yes | sdkmanager --sdk_root="$ANDROID_HOME" --licenses >/dev/null || true
-            sdkmanager --sdk_root="$ANDROID_HOME" "platform-tools" "platforms;android-34" "build-tools;34.0.0" "cmdline-tools;latest"
+            sdkmanager --sdk_root="$ANDROID_HOME" "platform-tools" "platforms;android-34" "build-tools;34.0.0" "cmdline-tools;latest" "cmake;3.10.2.4988404" "ndk;23.2.8568313"
           else
             echo "ERROR: Android sdkmanager was not found in the build container."
             exit 1
@@ -61,6 +61,8 @@ jobs:
           ls -la "$ANDROID_HOME/build-tools/34.0.0"
           ls -la "$ANDROID_HOME/cmdline-tools/latest"
           test -x "$ANDROID_HOME/build-tools/34.0.0/apksigner"
+          test -d "$ANDROID_HOME/cmake/3.10.2.4988404"
+          test -d "$ANDROID_HOME/ndk/23.2.8568313"
 
       - name: Create build directory
         run: mkdir -p build
