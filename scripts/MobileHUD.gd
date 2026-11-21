@@ -7,6 +7,7 @@ var joystick_base: Panel
 var joystick_knob: Panel
 var joystick_radius := 0.0
 var knob_size := 0.0
+var joystick_finger := -1
 
 func _ready() -> void:
     player = get_node_or_null(player_path)
@@ -15,7 +16,6 @@ func _ready() -> void:
     hud_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
     hud_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
     add_child(hud_root)
-
     _build_joystick()
     _build_camera_button()
     _build_jump_button()
@@ -26,6 +26,29 @@ func _process(_delta: float) -> void:
     if is_instance_valid(player) and joystick_knob != null:
         var center := joystick_base.size * 0.5
         joystick_knob.position = center + player.move_touch * (joystick_radius * 0.58) - joystick_knob.size * 0.5
+
+func _input(event: InputEvent) -> void:
+    if not is_instance_valid(player):
+        return
+    var viewport_size := get_viewport().get_visible_rect().size
+    var center := Vector2(viewport_size.x * 0.22, viewport_size.y * 0.78)
+    if event is InputEventScreenTouch:
+        var touch := event as InputEventScreenTouch
+        if touch.pressed:
+            if touch.position.x < viewport_size.x * 0.48 and joystick_finger == -1:
+                joystick_finger = touch.index
+                _update_joystick_input(touch.position, center)
+        elif touch.index == joystick_finger:
+            joystick_finger = -1
+            player.set_move_input(Vector2.ZERO)
+    elif event is InputEventScreenDrag:
+        var drag := event as InputEventScreenDrag
+        if drag.index == joystick_finger:
+            _update_joystick_input(drag.position, center)
+
+func _update_joystick_input(screen_position: Vector2, center: Vector2) -> void:
+    var radius := maxf(joystick_radius, 1.0)
+    player.set_move_input(((screen_position - center) / radius).limit_length(1.0))
 
 func _build_joystick() -> void:
     joystick_base = Panel.new()
