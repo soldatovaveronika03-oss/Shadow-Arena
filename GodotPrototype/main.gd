@@ -85,8 +85,16 @@ func _build_terrain() -> void:
 	grass_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	terrain.material_override = grass_material
 	add_child(terrain)
-	# Critical fix: the terrain now has a real trimesh collision surface.
-	terrain.create_trimesh_collision()
+	# Explicit static concave collision, built from the exact visible terrain triangles.
+	# This avoids relying on an automatically generated collision child.
+	var terrain_body := StaticBody3D.new()
+	terrain_body.name = "TerrainStaticCollision"
+	var terrain_collision := CollisionShape3D.new()
+	var terrain_shape := ConcavePolygonShape3D.new()
+	terrain_shape.set_faces(terrain_mesh.get_faces())
+	terrain_collision.shape = terrain_shape
+	terrain_body.add_child(terrain_collision)
+	add_child(terrain_body)
 
 	# A broad, readable dirt trail through the starting region.
 	var path_mesh := BoxMesh.new()
@@ -212,7 +220,8 @@ func _add_multimesh(mesh: Mesh, material: Material, transforms: Array[Transform3
 func _build_player() -> void:
 	player = CharacterBody3D.new()
 	player.name = "Kairon"
-	player.position = Vector3(0, _terrain_height(0, 8.0) + 0.12, 8)
+	# Spawn safely above the ground so the capsule can settle onto the collision.
+	player.position = Vector3(0, _terrain_height(0, 8.0) + 1.15, 8)
 	add_child(player)
 
 	var collision := CollisionShape3D.new()
@@ -413,5 +422,12 @@ func _physics_process(delta: float) -> void:
 	else:
 		player.velocity.y = -0.15
 	player.move_and_slide()
+	# Last-resort ground safety: never allow the hero to remain below the
+	# mathematically defined terrain surface if a physics contact is missed.
+	var ground_y := _terrain_height(player.global_position.x, player.global_position.z)
+	if player.global_position.y < ground_y + 0.08:
+		player.global_position.y = ground_y + 0.08
+		if player.velocity.y < 0.0:
+			player.velocity.y = 0.0
 	if direction.length() > 0.1:
 		player.rotation.y = lerp_angle(player.rotation.y, atan2(-direction.x, -direction.z), delta * 10.0)
