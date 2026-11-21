@@ -76,6 +76,8 @@ func _build_creature() -> void:
             if model != null:
                 model.scale = Vector3.ONE * model_scale
                 model.position.y = model_y_offset
+                # Imported wildlife assets are corrected so their feet/legs point down.
+                model.rotation_degrees.z = 90.0
                 add_child(model)
                 return
 
