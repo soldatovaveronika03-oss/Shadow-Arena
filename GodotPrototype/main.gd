@@ -24,6 +24,7 @@ var joystick_center := Vector2.ZERO
 var joystick_radius := 76.0
 var joystick_knob: Panel
 var hero_visual: Node3D
+var hero_visual_base_position := Vector3.ZERO
 var hero_attack_timer := 0.0
 var hero_jump_requested := false
 var hero_run_phase := 0.0
@@ -255,11 +256,13 @@ func _build_player() -> void:
 			visual_root.add_child(hero_model)
 			_fit_model_to_height(hero_model, 2.45)
 			hero_visual = hero_model
+			hero_visual_base_position = hero_model.position
 			hero_parts = _collect_named_rig_parts(hero_model, ["arm", "leg", "wing", "tail", "hand"])
 			hero_loaded = true
 	if not hero_loaded:
 		_add_fallback_hero(visual_root)
 		hero_visual = visual_root
+		hero_visual_base_position = visual_root.position
 
 	camera_pivot = Node3D.new()
 	camera_pivot.position.y = 1.55
@@ -351,7 +354,7 @@ func _build_models() -> void:
 		unit.add_child(model)
 		add_child(unit)
 		var parts := _collect_named_rig_parts(model, ["wing", "arm", "leg", "tail"])
-		ai_units.append({"body": unit, "model": model, "parts": parts, "home": Vector3(x, 0, z), "phase": rng.randf_range(0.0, TAU), "state": "wander", "speed": rng.randf_range(2.0, 3.2), "dragon": i == 1})
+		ai_units.append({"body": unit, "model": model, "parts": parts, "home": Vector3(x, 0, z), "phase": rng.randf_range(0.0, TAU), "state": "wander", "speed": rng.randf_range(2.0, 3.2), "dragon": i == 1, "model_base": model.position})
 
 func _build_ui() -> void:
 	var layer := CanvasLayer.new()
@@ -508,7 +511,7 @@ func _process(delta: float) -> void:
 		hero_attack_timer = maxf(0.0, hero_attack_timer - delta)
 	var attack_mix := sin((0.42 - hero_attack_timer) / 0.42 * PI) if hero_attack_timer > 0.0 else 0.0
 	if hero_visual != null:
-		hero_visual.position.y = (sin(hero_run_phase * 2.0) * 0.055 if moving else 0.0)
+		hero_visual.position = hero_visual_base_position + Vector3(0, sin(hero_run_phase * 2.0) * 0.055 if moving else 0.0, 0)
 		hero_visual.rotation.z = (sin(hero_run_phase) * 0.035 if moving else 0.0) + attack_mix * 0.22
 		_animate_parts(hero_parts, hero_run_phase, 1.0 if moving else 0.0, attack_mix, 0.0)
 
@@ -547,7 +550,8 @@ func _process(delta: float) -> void:
 			body.rotation.y = lerp_angle(body.rotation.y, atan2(-target_dir.x, -target_dir.z), delta * 3.5)
 		var creature_phase: float = unit_data["phase"] + Time.get_ticks_msec() * 0.001 * 5.0
 		var is_dragon: bool = unit_data["dragon"]
-		model.position.y = sin(creature_phase * 2.0) * (0.12 if is_dragon else 0.035)
+		var model_base: Vector3 = unit_data["model_base"]
+		model.position = model_base + Vector3(0, sin(creature_phase * 2.0) * (0.12 if is_dragon else 0.035), 0)
 		model.rotation.z = sin(creature_phase * 2.0) * 0.035
 		_animate_parts(unit_data["parts"], creature_phase, 1.0 if target_dir.length() > 0.1 else 0.0, 0.0, 1.0 if is_dragon else 0.0)
 
