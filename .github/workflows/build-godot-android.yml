@@ -38,7 +38,7 @@ jobs:
       - name: Export Android APK
         run: |
           mkdir -p GodotPrototype/build
-          godot --headless --path GodotPrototype --export-debug "Android Debug" GodotPrototype/build/ATLAS-WILDS-ARENA-test.apk
+          godot --headless --path GodotPrototype --export-debug "Android Debug" "$(pwd)/GodotPrototype/build/ATLAS-WILDS-ARENA-test.apk"
 
       - name: Verify APK
         run: |
