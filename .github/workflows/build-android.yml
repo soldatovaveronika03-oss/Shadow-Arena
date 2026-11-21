@@ -74,7 +74,7 @@ jobs:
 
       - name: Generate original fantasy GLTF assets
         run: |
-          python3 -m pip install --break-system-packages trimesh numpy
+          python3 -m pip install --user trimesh numpy
           python3 tools/generate_fantasy_assets.py
           test -s assets/models/Royal_Vanguard.gltf
           test -s assets/models/Forest_Lane_Crossing.gltf
