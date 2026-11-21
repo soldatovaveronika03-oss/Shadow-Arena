@@ -6,6 +6,7 @@
 
 class USpringArmComponent;
 class UCameraComponent;
+class UStaticMeshComponent;
 
 UCLASS()
 class ATLASWILDSARENA_API AAtlasPlayerCharacter : public ACharacter
@@ -21,6 +22,17 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Camera")
     TObjectPtr<UCameraComponent> FollowCamera;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Prototype Visual")
+    TObjectPtr<UStaticMeshComponent> BodyVisual;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Prototype Visual")
+    TObjectPtr<UStaticMeshComponent> HeadVisual;
+
+    void MoveForward(float Value);
+    void MoveRight(float Value);
+    void TurnCamera(float Value);
+    void LookCamera(float Value);
 
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 };
