@@ -31,6 +31,8 @@ var hero_run_phase := 0.0
 var ai_units: Array[Dictionary] = []
 var wing_parts: Array[Dictionary] = []
 var hero_parts: Array[Dictionary] = []
+var hero_animation_players: Array[AnimationPlayer] = []
+var hero_current_animation := ""
 
 func _ready() -> void:
 	rng.seed = 482019
@@ -55,6 +57,8 @@ func _build_world() -> void:
 	env.ambient_light_color = Color(0.72, 0.80, 0.91)
 	env.ambient_light_energy = 0.9
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.volumetric_fog_enabled = true
+	env.volumetric_fog_density = 0.006
 	world_env.environment = env
 	add_child(world_env)
 
@@ -66,6 +70,7 @@ func _build_world() -> void:
 
 	_build_terrain()
 	_build_nature()
+	_build_clouds()
 
 func _build_terrain() -> void:
 	var surface := SurfaceTool.new()
@@ -91,10 +96,39 @@ func _build_terrain() -> void:
 	var terrain := MeshInstance3D.new()
 	terrain.name = "LargeCollidableTerrain"
 	terrain.mesh = terrain_mesh
-	var grass_material := StandardMaterial3D.new()
-	grass_material.albedo_color = Color(0.20, 0.36, 0.19)
-	grass_material.roughness = 1.0
-	grass_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var grass_material := ShaderMaterial.new()
+	var terrain_shader := Shader.new()
+	terrain_shader.code = """
+shader_type spatial;
+render_mode diffuse_burley, specular_schlick_ggx;
+varying vec3 world_pos;
+void vertex() {
+	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+float hash(vec2 p) {
+	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+float noise2(vec2 p) {
+	vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f);
+	return mix(mix(hash(i), hash(i+vec2(1.0,0.0)), f.x),
+		mix(hash(i+vec2(0.0,1.0)), hash(i+vec2(1.0,1.0)), f.x), f.y);
+}
+void fragment() {
+	vec2 p = world_pos.xz * 0.075;
+	float n = noise2(p) * 0.55 + noise2(p * 3.7) * 0.30 + noise2(p * 11.0) * 0.15;
+	float patches = noise2(world_pos.xz * 0.018);
+	vec3 grass = mix(vec3(0.075,0.17,0.075), vec3(0.22,0.34,0.12), n);
+	vec3 earth = vec3(0.27,0.22,0.14);
+	vec3 stone = vec3(0.30,0.31,0.29);
+	float dirt_mask = smoothstep(0.66,0.82, patches);
+	float rock_mask = smoothstep(0.77,0.92, noise2(world_pos.xz * 0.035 + 17.0));
+	vec3 col = mix(grass, earth, dirt_mask * 0.72);
+	col = mix(col, stone, rock_mask * 0.28);
+	ALBEDO = col;
+	ROUGHNESS = 0.96;
+}
+"""
+	grass_material.shader = terrain_shader
 	terrain.material_override = grass_material
 	add_child(terrain)
 	# Explicit static concave collision, built from the exact visible terrain triangles.
@@ -119,6 +153,27 @@ func _build_terrain() -> void:
 	trail.material_override = trail_mat
 	trail.position = Vector3(0, 0.10, -42)
 	add_child(trail)
+
+func _build_clouds() -> void:
+	# Soft, layered cloud banks at several heights and scales.
+	var cloud_mesh := SphereMesh.new()
+	cloud_mesh.radius = 1.0
+	cloud_mesh.height = 1.0
+	var cloud_mat := StandardMaterial3D.new()
+	cloud_mat.albedo_color = Color(0.91, 0.95, 1.0, 0.82)
+	cloud_mat.roughness = 1.0
+	cloud_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	cloud_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var clouds: Array[Transform3D] = []
+	for i in range(34):
+		var x := rng.randf_range(-WORLD_HALF_SIZE * 1.3, WORLD_HALF_SIZE * 1.3)
+		var z := rng.randf_range(-WORLD_HALF_SIZE * 1.3, WORLD_HALF_SIZE * 1.3)
+		var y := rng.randf_range(54.0, 82.0)
+		var scale_x := rng.randf_range(10.0, 23.0)
+		var scale_y := rng.randf_range(2.2, 4.8)
+		var scale_z := rng.randf_range(7.0, 16.0)
+		clouds.append(Transform3D(Basis().scaled(Vector3(scale_x, scale_y, scale_z)), Vector3(x, y, z)))
+	_add_multimesh(cloud_mesh, cloud_mat, clouds, "DistantCloudBanks")
 
 func _build_nature() -> void:
 	var trunk_mesh := CylinderMesh.new()
@@ -258,6 +313,8 @@ func _build_player() -> void:
 			hero_visual = hero_model
 			hero_visual_base_position = hero_model.position
 			hero_parts = _collect_named_rig_parts(hero_model, ["arm", "leg", "wing", "tail", "hand"])
+			hero_animation_players = _find_animation_players(hero_model)
+			_play_model_animation(hero_animation_players, ["idle", "stand", "wait"])
 			hero_loaded = true
 	if not hero_loaded:
 		_add_fallback_hero(visual_root)
@@ -354,7 +411,9 @@ func _build_models() -> void:
 		unit.add_child(model)
 		add_child(unit)
 		var parts := _collect_named_rig_parts(model, ["wing", "arm", "leg", "tail"])
-		ai_units.append({"body": unit, "model": model, "parts": parts, "home": Vector3(x, 0, z), "phase": rng.randf_range(0.0, TAU), "state": "wander", "speed": rng.randf_range(2.0, 3.2), "dragon": i == 1, "model_base": model.position})
+		var anim_players := _find_animation_players(model)
+		_play_model_animation(anim_players, ["idle", "stand", "fly"] if i == 1 else ["idle", "stand"])
+		ai_units.append({"body": unit, "model": model, "parts": parts, "animations": anim_players, "current_animation": "idle", "home": Vector3(x, 0, z), "phase": rng.randf_range(0.0, TAU), "state": "wander", "speed": rng.randf_range(2.0, 3.2), "dragon": i == 1, "model_base": model.position})
 
 func _build_ui() -> void:
 	var layer := CanvasLayer.new()
@@ -433,11 +492,36 @@ func _reset_joystick() -> void:
 		joystick_knob.position = Vector2(46, 46)
 
 func _attack() -> void:
-	hero_attack_timer = 0.42
+	hero_attack_timer = 0.72
+	_play_model_animation(hero_animation_players, ["attack", "slash", "hit", "combat"], true)
 	info_label.text = "Кайрон наносит удар!"
 
 func _jump() -> void:
 	hero_jump_requested = true
+
+func _find_animation_players(root: Node) -> Array[AnimationPlayer]:
+	var players: Array[AnimationPlayer] = []
+	_find_animation_players_recursive(root, players)
+	return players
+
+func _find_animation_players_recursive(node: Node, players: Array[AnimationPlayer]) -> void:
+	if node is AnimationPlayer:
+		players.append(node as AnimationPlayer)
+	for child in node.get_children():
+		_find_animation_players_recursive(child, players)
+
+func _play_model_animation(players: Array[AnimationPlayer], keywords: Array, restart: bool = false) -> String:
+	for animation_player in players:
+		if not is_instance_valid(animation_player):
+			continue
+		var animation_names := animation_player.get_animation_list()
+		for keyword in keywords:
+			for animation_name in animation_names:
+				if str(animation_name).to_lower().contains(str(keyword)):
+					if restart or animation_player.current_animation != animation_name:
+						animation_player.play(animation_name)
+					return str(animation_name)
+	return ""
 
 func _collect_named_rig_parts(root: Node, keywords: Array) -> Array[Dictionary]:
 	var found: Array[Dictionary] = []
@@ -514,6 +598,16 @@ func _process(delta: float) -> void:
 		hero_visual.position = hero_visual_base_position + Vector3(0, sin(hero_run_phase * 2.0) * 0.055 if moving else 0.0, 0)
 		hero_visual.rotation.z = (sin(hero_run_phase) * 0.035 if moving else 0.0) + attack_mix * 0.22
 		_animate_parts(hero_parts, hero_run_phase, 1.0 if moving else 0.0, attack_mix, 0.0)
+		var desired_hero_animation := "attack" if hero_attack_timer > 0.0 else ("run" if moving else "idle")
+		if desired_hero_animation != hero_current_animation:
+			var selected := ""
+			if desired_hero_animation == "attack":
+				selected = _play_model_animation(hero_animation_players, ["attack", "slash", "hit", "combat"], true)
+			elif desired_hero_animation == "run":
+				selected = _play_model_animation(hero_animation_players, ["run", "walk", "move"])
+			else:
+				selected = _play_model_animation(hero_animation_players, ["idle", "stand", "wait"])
+			hero_current_animation = desired_hero_animation
 
 	for unit_data in ai_units:
 		var body: CharacterBody3D = unit_data["body"]
@@ -522,7 +616,7 @@ func _process(delta: float) -> void:
 			continue
 		var to_player := player.global_position - body.global_position
 		var distance := Vector2(to_player.x, to_player.z).length()
-		var state := "chase" if distance < 19.0 else "wander"
+		var state := "attack" if distance < 3.0 else ("chase" if distance < 19.0 else "wander")
 		unit_data["state"] = state
 		var target_dir := Vector3.ZERO
 		if state == "chase" and distance > 2.6:
@@ -550,10 +644,21 @@ func _process(delta: float) -> void:
 			body.rotation.y = lerp_angle(body.rotation.y, atan2(-target_dir.x, -target_dir.z), delta * 3.5)
 		var creature_phase: float = unit_data["phase"] + Time.get_ticks_msec() * 0.001 * 5.0
 		var is_dragon: bool = unit_data["dragon"]
+		var desired_creature_animation := "attack" if state == "attack" else ("run" if target_dir.length() > 0.1 else "idle")
+		if desired_creature_animation != str(unit_data.get("current_animation", "")):
+			var anims: Array[AnimationPlayer] = unit_data["animations"]
+			var selected_anim := ""
+			if desired_creature_animation == "attack":
+				selected_anim = _play_model_animation(anims, ["attack", "bite", "claw", "combat"], true)
+			elif desired_creature_animation == "run":
+				selected_anim = _play_model_animation(anims, ["run", "walk", "fly"] if is_dragon else ["run", "walk", "move"])
+			else:
+				selected_anim = _play_model_animation(anims, ["fly", "idle", "stand"] if is_dragon else ["idle", "stand", "wait"])
+			unit_data["current_animation"] = desired_creature_animation
 		var model_base: Vector3 = unit_data["model_base"]
 		model.position = model_base + Vector3(0, sin(creature_phase * 2.0) * (0.12 if is_dragon else 0.035), 0)
 		model.rotation.z = sin(creature_phase * 2.0) * 0.035
-		_animate_parts(unit_data["parts"], creature_phase, 1.0 if target_dir.length() > 0.1 else 0.0, 0.0, 1.0 if is_dragon else 0.0)
+		_animate_parts(unit_data["parts"], creature_phase, 1.0 if target_dir.length() > 0.1 else 0.0, 1.0 if state == "attack" else 0.0, 1.0 if is_dragon else 0.0)
 
 func _physics_process(delta: float) -> void:
 	if player == null:
