@@ -281,8 +281,10 @@ func _collect_model_bounds(node: Node, parent_transform: Transform3D, bounds: Ar
 							bounds[1] = point
 							bounds[2] = true
 						else:
-							bounds[0] = (bounds[0] as Vector3).min(point)
-							bounds[1] = (bounds[1] as Vector3).max(point)
+							var current_min: Vector3 = bounds[0]
+							var current_max: Vector3 = bounds[1]
+							bounds[0] = current_min.min(point)
+							bounds[1] = current_max.max(point)
 	for child in node.get_children():
 		_collect_model_bounds(child, current_transform, bounds)
 
@@ -313,9 +315,9 @@ func _build_models() -> void:
 		instance.name = "WorldCreature_" + str(i + 1)
 		var x := -13.0 if i == 1 else 13.0
 		var z := -20.0
+		_fit_model_to_height(instance, 3.0)
 		instance.position = Vector3(x, _terrain_height(x, z), z)
 		add_child(instance)
-		_fit_model_to_height(instance, 3.0)
 
 func _build_ui() -> void:
 	var layer := CanvasLayer.new()
