@@ -1,7 +1,6 @@
 extends Node3D
 
 const UnitScript = preload("res://scripts/Arena/ArenaUnit.gd")
-const DRAGON_SCRIPT = preload("res://scripts/ProceduralDragon.gd")
 
 var units: Array = []
 var structures: Array = []
@@ -34,7 +33,7 @@ func _process(delta: float) -> void:
     if is_instance_valid(player):
         health_label.text = "HP %d / %d" % [int(player.health), int(player.max_health)]
         if is_instance_valid(arena_camera):
-            var desired := player.global_position + Vector3(0.0, 66.0, 52.0)
+            var desired := player.global_position + Vector3(0.0, 29.0, 25.0)
             arena_camera.global_position = arena_camera.global_position.lerp(desired, minf(1.0, delta * 3.5))
             arena_camera.look_at(player.global_position, Vector3.UP)
     for i in range(action_buttons.size()):
@@ -61,9 +60,9 @@ func _build_world() -> void:
     add_child(world_env)
     arena_camera = Camera3D.new()
     arena_camera.name = "ArenaCamera"
-    arena_camera.position = Vector3(0.0, 67.0, 54.0)
+    arena_camera.position = Vector3(0.0, 30.0, 26.0)
     arena_camera.current = true
-    arena_camera.fov = 48.0
+    arena_camera.fov = 54.0
     add_child(arena_camera)
     arena_camera.look_at(Vector3.ZERO, Vector3.UP)
     var sun := DirectionalLight3D.new()
@@ -72,6 +71,16 @@ func _build_world() -> void:
     sun.shadow_enabled = true
     add_child(sun)
     _box(self, "ArenaGround", Vector3(0, -0.6, 0), Vector3(150, 1.2, 110), Color(0.16, 0.28, 0.19), true)
+    # Import the handcrafted GLTF forest-lane tile; no stock game assets are used.
+    var forest_scene := load("res://assets/models/Forest_Lane_Crossing.gltf") as PackedScene
+    if forest_scene != null:
+        var forest_tile := forest_scene.instantiate()
+        forest_tile.name = "FantasyForestLaneTile"
+        forest_tile.position = Vector3(0.0, 0.035, 0.0)
+        forest_tile.scale = Vector3(1.45, 1.0, 1.3)
+        add_child(forest_tile)
+    else:
+        push_error("Forest lane GLTF could not be imported.")
     _box(self, "River", Vector3(0, 0.02, 0), Vector3(10.0, 0.12, 100), Color(0.12, 0.42, 0.58), false)
     for lane_z in [-34.0, 0.0, 34.0]:
         _box(self, "Lane", Vector3(0, 0.04, lane_z), Vector3(132, 0.1, 6.4), Color(0.42, 0.39, 0.29), false)
