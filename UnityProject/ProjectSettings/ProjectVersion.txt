@@ -1,0 +1,2 @@
+m_EditorVersion: 6000.3.0f1
+m_EditorVersionWithRevision: 6000.3.0f1 (project bootstrap; Unity Hub may prompt to install a matching Unity 6 LTS editor)
