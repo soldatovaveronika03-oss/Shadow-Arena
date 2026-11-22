@@ -31,9 +31,19 @@ jobs:
       - name: Stage uploaded GLB models
         run: cp -a assets GodotPrototype/assets
 
-      - name: Import project assets
+      - name: Import project assets and validate scripts
         run: |
-          godot --headless --editor --path GodotPrototype --quit
+          set -o pipefail
+          godot --headless --editor --path GodotPrototype --quit 2>&1 | tee /tmp/godot-import.log
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" /tmp/godot-import.log; then
+            echo "Godot script validation failed during import."
+            exit 1
+          fi
+          godot --headless --path GodotPrototype --quit-after 3 2>&1 | tee /tmp/godot-runtime.log
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script|ERROR: Failed to load" /tmp/godot-runtime.log; then
+            echo "Godot startup validation failed."
+            exit 1
+          fi
 
       - name: Export Android APK
         run: |
