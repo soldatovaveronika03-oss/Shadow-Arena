@@ -123,7 +123,11 @@ func _wing_mesh(material: Material) -> MeshInstance3D:
 	st.add_vertex(Vector3(1.9, 0.95, 0))
 	st.add_vertex(Vector3(0.5, 1.45, 0))
 	st.generate_normals()
-	return _mesh(Node3D.new(), "unused", st.commit(), material, Vector3.ZERO)
+	var wing := MeshInstance3D.new()
+	wing.name = "DragonWingMembrane"
+	wing.mesh = st.commit()
+	wing.material_override = material
+	return wing
 
 func _spawn_dragon() -> void:
 	var root := Node3D.new()
