@@ -306,7 +306,7 @@ func _build_player() -> void:
 	if ResourceLoader.exists(MODEL_PATHS[0]):
 		var packed = load(MODEL_PATHS[0]) as PackedScene
 		if packed != null:
-			var hero_model := packed.instantiate()
+			var hero_model := packed.instantiate() as Node3D
 			hero_model.name = "KaironUploaded3DModel"
 			visual_root.add_child(hero_model)
 			_fit_model_to_height(hero_model, 2.45)
@@ -330,7 +330,7 @@ func _build_player() -> void:
 	camera.fov = 72.0
 	camera_pivot.add_child(camera)
 
-func _fit_model_to_height(model: Node, target_height: float) -> void:
+func _fit_model_to_height(model: Node3D, target_height: float) -> void:
 	var bounds: Array = [Vector3.ZERO, Vector3.ZERO, false]
 	_collect_model_bounds(model, Transform3D.IDENTITY, bounds)
 	if not bool(bounds[2]):
@@ -432,7 +432,7 @@ func _spawn_creature(model_path: String, is_dragon: bool, size_multiplier: float
 	shape_node.shape = capsule
 	shape_node.position.y = 0.9
 	unit.add_child(shape_node)
-	var model := packed.instantiate()
+	var model := packed.instantiate() as Node3D
 	model.name = unit_name + "_Model"
 	_fit_model_to_height(model, 3.2 * size_multiplier)
 	unit.add_child(model)
