@@ -23,13 +23,13 @@ jobs:
 
       - name: Prepare project, integrate GLB animals and export APK
         run: |
+          python3 prepare_android.py
           docker run --rm \
             -v "$GITHUB_WORKSPACE:/workspace" \
             -w /workspace \
             barichello/godot-ci:4.2.2 \
             bash -lc '
               set -e
-              python3 prepare_android.py
               PROJECT="build_project/dragon_realm_v3"
               godot --headless --path "$PROJECT" --editor --import --quit
               mkdir -p "$PROJECT/build"
