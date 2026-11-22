@@ -6,20 +6,13 @@ const CASTLE_CENTER := Vector2(-112.0, -92.0)
 
 func _ready() -> void:
 	_build_castle()
+	_build_village()
 	_build_ruined_outpost()
 	_build_waterfall()
 
 func _terrain_height(x: float, z: float) -> float:
-	var rolling := sin(x * 0.018) * 2.8 + cos(z * 0.021) * 2.2
-	rolling += sin((x + z) * 0.011) * 1.8 + cos((x - z) * 0.014) * 1.1
-	var distance := Vector2(x * 0.92, z * 1.04).length()
-	var mountain_mask: float = smoothstep(112.0, 198.0, distance)
-	var ridge_a: float = abs(sin(x * 0.022 + cos(z * 0.013) * 1.7))
-	var ridge_b: float = abs(cos(z * 0.019 - sin(x * 0.017) * 1.3))
-	var ridges := pow(maxf(ridge_a * ridge_b, 0.015), 0.62) * 34.0
-	var peaks := maxf(0.0, sin(x * 0.031 + z * 0.018) * cos(z * 0.027 - x * 0.012)) * 13.0
-	var clearing := clampf(1.0 - Vector2(x, z - 8.0).length() / 46.0, 0.0, 1.0)
-	return (rolling * (1.0 - mountain_mask * 0.45) + (ridges + peaks + rolling * 0.6) * mountain_mask) * (1.0 - clearing * 0.96)
+	# Use the exact terrain function from the main world so landmarks never float.
+	return float(get_parent().call("_terrain_height", x, z))
 
 func _material(color: Color, roughness: float = 0.9, metallic: float = 0.0) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
@@ -170,6 +163,63 @@ func _build_castle() -> void:
 		lamp.light_energy = 0.45
 		lamp.omni_range = 9.0
 		castle.add_child(lamp)
+
+ 
+func _build_village() -> void:
+	var village := Node3D.new()
+	village.name = "GreenvaleVillage"
+	village.position = Vector3(66.0, _terrain_height(66.0, 108.0), 108.0)
+	add_child(village)
+	var stone := _material(Color(0.34, 0.33, 0.29), 0.94)
+	var plaster := _material(Color(0.63, 0.55, 0.40), 0.92)
+	var timber := _material(Color(0.22, 0.12, 0.065), 0.9)
+	var roof := _material(Color(0.20, 0.13, 0.10), 0.9)
+	var dark := _material(Color(0.075, 0.065, 0.045), 0.98)
+	_build_village_house(village, Vector3(0, 0, 0), 1.18, stone, plaster, timber, roof, dark, "VillageInn")
+	_build_village_house(village, Vector3(-15, 0, -8), 0.82, stone, plaster, timber, roof, dark, "NorthCottage")
+	_build_village_house(village, Vector3(16, 0, -11), 0.88, stone, plaster, timber, roof, dark, "EastCottage")
+	_build_village_house(village, Vector3(-17, 0, 13), 0.78, stone, plaster, timber, roof, dark, "SouthCottage")
+	_build_village_house(village, Vector3(17, 0, 14), 0.92, stone, plaster, timber, roof, dark, "CraftsmanHome")
+	# Village well and low timber fencing.
+	_cylinder(village, "VillageWellStoneRim", Vector3(0, 0.65, 18), 1.45, 1.3, stone)
+	_cylinder(village, "VillageWellWater", Vector3(0, 1.28, 18), 1.08, 0.08, _material(Color(0.06, 0.24, 0.30), 0.2), false)
+	for x in [-2.0, 2.0]:
+		_cylinder(village, "WellSupport", Vector3(x, 2.6, 18), 0.12, 3.2, timber, false)
+	_box(village, "WellRoof", Vector3(0, 4.25, 18), Vector3(5.2, 0.35, 3.2), roof, false)
+	for side in [-1.0, 1.0]:
+		for i in range(8):
+			var z := -17.0 + float(i) * 4.8
+			_cylinder(village, "FencePost", Vector3(side * 27.0, 0.8, z), 0.12, 1.6, timber, false)
+		_box(village, "FenceRail", Vector3(side * 27.0, 0.55, z + 2.4), Vector3(0.18, 0.16, 4.8), timber, false)
+		_box(village, "FenceRailUpper", Vector3(side * 27.0, 1.1, z + 2.4), Vector3(0.18, 0.16, 4.8), timber, false)
+
+func _build_village_house(parent: Node3D, local_pos: Vector3, scale: float, stone: Material, plaster: Material, timber: Material, roof: Material, dark: Material, house_name: String) -> void:
+	var house := Node3D.new()
+	house.name = house_name
+	house.position = local_pos
+	house.scale = Vector3.ONE * scale
+	parent.add_child(house)
+	_box(house, "StoneFooting", Vector3(0, 0.22, 0), Vector3(7.4, 0.45, 6.4), stone)
+	_box(house, "BackWall", Vector3(0, 1.9, -2.9), Vector3(7.0, 3.2, 0.28), plaster)
+	_box(house, "LeftWall", Vector3(-3.35, 1.9, 0), Vector3(0.28, 3.2, 5.8), plaster)
+	_box(house, "RightWall", Vector3(3.35, 1.9, 0), Vector3(0.28, 3.2, 5.8), plaster)
+	_box(house, "FrontLeftWall", Vector3(-2.1, 1.9, 2.9), Vector3(2.5, 3.2, 0.28), plaster)
+	_box(house, "FrontRightWall", Vector3(2.1, 1.9, 2.9), Vector3(2.5, 3.2, 0.28), plaster)
+	_box(house, "FrontDoor", Vector3(0, 1.45, 3.08), Vector3(1.55, 2.55, 0.16), timber, false)
+	_box(house, "DoorHandle", Vector3(0.48, 1.45, 3.18), Vector3(0.08, 0.08, 0.06), dark, false)
+	for side in [-1.0, 1.0]:
+		_box(house, "WindowFrame", Vector3(side * 2.15, 2.0, 3.12), Vector3(0.92, 1.05, 0.12), timber, false)
+		_box(house, "WindowGlass", Vector3(side * 2.15, 2.0, 3.20), Vector3(0.68, 0.82, 0.06), dark, false)
+		var roof_slope := MeshInstance3D.new()
+		var roof_mesh := BoxMesh.new()
+		roof_mesh.size = Vector3(4.25, 0.38, 7.1)
+		roof_slope.mesh = roof_mesh
+		roof_slope.material_override = roof
+		roof_slope.position = Vector3(side * 1.72, 4.0, 0)
+		roof_slope.rotation.z = side * -0.52
+		house.add_child(roof_slope)
+	_cylinder(house, "StoneChimney", Vector3(-2.25, 4.0, -1.8), 0.34, 2.3, stone, false)
+	_box(house, "TimberGableBeam", Vector3(0, 3.45, 0), Vector3(7.2, 0.18, 0.18), timber, false)
 
 func _build_ruined_outpost() -> void:
 	var ruins := Node3D.new()
