@@ -525,6 +525,33 @@ func _build_foliage_and_rocks() -> void:
 	_add_multimesh(rock_mesh, rock_material, rock_transforms, "WeatheredRockScatter")
 	_add_multimesh(shrub_mesh, shrub_material, shrub_transforms, "DenseUndergrowth")
 
+	# Small meadow flowers and forest-floor mushrooms add scale and color variation.
+	var flower_mesh := SphereMesh.new()
+	flower_mesh.radius = 0.5
+	flower_mesh.height = 0.5
+	flower_mesh.radial_segments = 7
+	flower_mesh.rings = 4
+	var flower_gold := StandardMaterial3D.new()
+	flower_gold.albedo_color = Color(0.92, 0.69, 0.22)
+	var flower_blue := StandardMaterial3D.new()
+	flower_blue.albedo_color = Color(0.40, 0.56, 0.82)
+	var flower_white := StandardMaterial3D.new()
+	flower_white.albedo_color = Color(0.84, 0.83, 0.68)
+	var flower_sets: Array[Array] = [[], [], []]
+	for i in range(210):
+		var fx := rng.randf_range(-WORLD_HALF_SIZE + 8.0, WORLD_HALF_SIZE - 8.0)
+		var fz := rng.randf_range(-WORLD_HALF_SIZE + 8.0, WORLD_HALF_SIZE - 8.0)
+		if Vector2(fx, fz - 8.0).length() < 34.0:
+			continue
+		if _terrain_height(fx, fz) > 30.0:
+			continue
+		var flower_scale := rng.randf_range(0.12, 0.24)
+		var flower_basis := Basis().scaled(Vector3(flower_scale, flower_scale * 0.7, flower_scale))
+		flower_sets[i % 3].append(Transform3D(flower_basis, Vector3(fx, _terrain_height(fx, fz) + rng.randf_range(0.42, 0.72), fz)))
+	_add_multimesh(flower_mesh, flower_gold, flower_sets[0], "GoldenMeadowFlowers")
+	_add_multimesh(flower_mesh, flower_blue, flower_sets[1], "BlueMeadowFlowers")
+	_add_multimesh(flower_mesh, flower_white, flower_sets[2], "WhiteMeadowFlowers")
+
 	# Wind-bent grass clumps, batched into a single MultiMesh for Android.
 	var grass_mesh := CapsuleMesh.new()
 	grass_mesh.radius = 0.045
@@ -677,6 +704,12 @@ func _add_multimesh(mesh: Mesh, material: Material, transforms: Array[Transform3
 	instance.name = node_name
 	instance.multimesh = multi
 	instance.material_override = material
+	if node_name == "WindAnimatedGrass":
+		instance.visibility_range_end = 82.0
+	elif node_name == "DistantCloudBanks":
+		instance.visibility_range_end = 420.0
+	else:
+		instance.visibility_range_end = 230.0
 	add_child(instance)
 
 func _build_player() -> void:
