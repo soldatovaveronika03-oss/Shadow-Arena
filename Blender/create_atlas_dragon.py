@@ -123,6 +123,9 @@ for s,label in [(-1,"L"),(1,"R")]:
 # Animation actions on rig; exported as distinct GLB clips.
 def action(name, frames):
     bpy.ops.object.select_all(action='DESELECT'); arm.select_set(True); bpy.context.view_layer.objects.active=arm
+    arm.animation_data_create()
+    new_action=bpy.data.actions.new(name)
+    arm.animation_data.action=new_action
     bpy.ops.object.mode_set(mode='POSE')
     for p in arm.pose.bones: p.rotation_mode='XYZ'
     bpy.context.scene.frame_start=1; bpy.context.scene.frame_end=max(f for _,f in frames)
@@ -165,6 +168,7 @@ bpy.ops.object.select_all(action='DESELECT')
 for o in bpy.context.scene.objects:
     if o.type in {'MESH','ARMATURE'}: o.select_set(True)
 bpy.context.view_layer.objects.active=arm
+bpy.ops.wm.save_as_mainfile(filepath="/tmp/atlas_dragon.blend")
 bpy.ops.export_scene.gltf(filepath="/tmp/atlas_dragon.glb", export_format='GLB',
     use_selection=True, export_apply=True, export_animations=True,
     export_animation_mode='ACTIONS', export_nla_strips=False,
