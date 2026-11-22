@@ -78,7 +78,24 @@ jobs:
               PROJECT="build_project/dragon_realm_v3"
               godot --headless --path "$PROJECT" --editor --import --quit
               mkdir -p "$PROJECT/build"
-              godot --headless --path "$PROJECT" --export-debug "Android" "$PROJECT/build/ATLAS_WILDS_ARENA.apk"
+              echo "=== Godot version ==="
+              godot --version
+              echo "=== Android SDK tools ==="
+              ls -la /opt/android-sdk/build-tools/33.0.2 || true
+              echo "=== Godot export templates ==="
+              find /root/.local/share/godot -maxdepth 4 -type f 2>/dev/null | head -80 || true
+              echo "=== Export preset ==="
+              cat "$PROJECT/export_presets.cfg"
+              mkdir -p "$PROJECT/build"
+              set +e
+              godot --headless --verbose --path "$PROJECT" --export-debug "Android" "$PROJECT/build/ATLAS_WILDS_ARENA.apk" 2>&1 | tee /workspace/android-export.log
+              export_status=${PIPESTATUS[0]}
+              set -e
+              if [ "$export_status" -ne 0 ]; then
+                echo "Android export failed with exit code $export_status"
+                grep -Ein "error|fail|missing|invalid|template|sdk|keystore|icon" /workspace/android-export.log | tail -120 || true
+                exit "$export_status"
+              fi
               test -s "$PROJECT/build/ATLAS_WILDS_ARENA.apk"
               ls -lh "$PROJECT/build/ATLAS_WILDS_ARENA.apk"
             '
