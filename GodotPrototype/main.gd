@@ -241,7 +241,8 @@ func _build_foliage_and_rocks() -> void:
 	var crown_material := StandardMaterial3D.new()
 	crown_material.albedo_color = Color(0.10, 0.24, 0.12)
 	crown_material.roughness = 1.0
-	var pine_mesh := ConeMesh.new()
+	var pine_mesh := CylinderMesh.new()
+	pine_mesh.top_radius = 0.0
 	pine_mesh.bottom_radius = 1.35
 	pine_mesh.height = 3.6
 	var pine_material := StandardMaterial3D.new()
