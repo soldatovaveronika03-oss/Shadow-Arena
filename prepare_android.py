@@ -22,7 +22,7 @@ PROJECT = WORK / "dragon_realm_v3"
 if not (PROJECT / "project.godot").exists():
     raise SystemExit("The archive does not contain dragon_realm_v3/project.godot")
 
-icon_png = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC")
+icon_png = base64.b64decode("__PNG64__")
 (PROJECT / "icon.png").write_bytes(icon_png)
 project_settings = PROJECT / "project.godot"
 project_text = project_settings.read_text(encoding="utf-8")
