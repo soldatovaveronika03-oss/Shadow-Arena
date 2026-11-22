@@ -76,7 +76,11 @@ jobs:
             bash -lc '
               set -e
               PROJECT="build_project/dragon_realm_v3"
+              echo "=== Install Godot Android build template ==="
+              godot --headless --editor --path "$PROJECT" --install-android-build-template
+              echo "=== Import project resources ==="
               godot --headless --path "$PROJECT" --editor --import --quit
+              test -d "$PROJECT/android/build" || { echo "Android Gradle build template directory was not created"; exit 1; }
               mkdir -p "$PROJECT/build"
               echo "=== Godot version ==="
               godot --version
