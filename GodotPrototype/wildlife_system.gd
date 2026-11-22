@@ -11,7 +11,8 @@ var world_time := 0.0
 func _ready() -> void:
 	rng.seed = 731904
 	player = get_parent().get_node_or_null("Kairon") as Node3D
-	# The original uploaded dragon is loaded by main.gd; disable procedural duplicate and all wildlife.
+	# Restore the original gameplay dragon; other wildlife remains disabled.
+	_spawn_dragon()
 	_build_wind_foliage()
 
 func _ground(x: float, z: float) -> float:
@@ -178,7 +179,37 @@ func _spawn_dragon() -> void:
 	root.position = Vector3(38.0, _ground(38.0, -42.0), -42.0)
 	root.scale = Vector3.ONE * 1.9
 	add_child(root)
-	creatures.append({"root": root, "legs": legs, "wings": wings, "tail": tail, "neck": neck, "kind": "Dragon", "phase": 0.0, "speed": 4.0, "state": "ground", "target": Vector3(75, 0, -75), "think": 3.0, "home": root.position, "flight_time": 0.0})
+	var health_label := Label3D.new()
+	health_label.name = "DragonHealthBar"
+	health_label.position = Vector3(0, 5.2, 0)
+	health_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	health_label.font_size = 48
+	health_label.pixel_size = 0.006
+	health_label.modulate = Color(0.25, 1.0, 0.25)
+	health_label.text = "██████████"
+	root.add_child(health_label)
+	creatures.append({"root": root, "legs": legs, "wings": wings, "tail": tail, "neck": neck, "kind": "Dragon", "phase": 0.0, "speed": 4.0, "state": "ground", "target": Vector3(75, 0, -75), "think": 3.0, "home": root.position, "flight_time": 0.0, "health": 250.0, "max_health": 250.0, "health_label": health_label, "dead": false})
+
+func damage_nearest_dragon(origin: Vector3, direction: Vector3, reach: float, amount: float) -> bool:
+	for data in creatures:
+		if String(data.get("kind", "")) != "Dragon" or bool(data.get("dead", false)):
+			continue
+		var root: Node3D = data.root
+		var offset := root.global_position + Vector3.UP * 2.0 - origin
+		var along := offset.dot(direction.normalized())
+		var lateral := (offset - direction.normalized() * along).length()
+		if along >= 0.0 and along <= reach and lateral <= 3.2:
+			data.health = maxf(0.0, float(data.health) - amount)
+			var ratio := float(data.health) / float(data.max_health)
+			var label: Label3D = data.health_label
+			label.text = "█".repeat(int(ceil(ratio * 10.0)))
+			label.modulate = Color(1.0, 0.12, 0.08) if ratio <= 0.25 else (Color(1.0, 0.72, 0.12) if ratio <= 0.5 else Color(0.25, 1.0, 0.25))
+			if data.health <= 0.0:
+				data.dead = true
+				data.state = "death"
+				label.visible = false
+			return true
+	return false
 
 func _build_wind_foliage() -> void:
 	var leaf_mat := _mat(Color(0.16, 0.34, 0.16))
