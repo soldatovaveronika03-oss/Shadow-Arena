@@ -40,9 +40,10 @@ jobs:
       - name: Install Android export packages
         run: sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
-      - name: Prepare project, integrate GLB animals and export APK
+      - name: Prepare project with app icon and export APK (no external 3D models)
         run: |
           set -e
+          python3 -m pip install --user Pillow
           python3 prepare_android.py
 
           mkdir -p "$HOME/.config/godot" "$HOME/.android"
