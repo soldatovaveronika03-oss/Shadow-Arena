@@ -7,7 +7,7 @@ const MODEL_PATHS = [
 ]
 const HERO_MODEL_FORWARD_OFFSET := PI
 const WORLD_HALF_SIZE := 220.0
-const TERRAIN_CELLS := 64
+const TERRAIN_CELLS := 112
 const TERRAIN_STEP := (WORLD_HALF_SIZE * 2.0) / float(TERRAIN_CELLS)
 
 var player: CharacterBody3D
@@ -53,37 +53,46 @@ func _ready() -> void:
 
 
 func _terrain_height(x: float, z: float) -> float:
-	# Broad valley around the spawn, with a rising mountain rim and layered ridges.
-	var rolling := sin(x * 0.018) * 2.8 + cos(z * 0.021) * 2.2
-	rolling += sin((x + z) * 0.011) * 1.8 + cos((x - z) * 0.014) * 1.1
+	var broad := sin(x * 0.012 + sin(z * 0.009) * 1.4) * 4.2 + cos(z * 0.016 - x * 0.006) * 3.0
+	var detail := sin(x * 0.043 + z * 0.021) * 1.15 + cos(z * 0.052 - x * 0.027) * 0.82 + sin((x - z) * 0.091) * 0.32
 	var distance := Vector2(x * 0.92, z * 1.04).length()
-	var mountain_mask: float = smoothstep(112.0, 198.0, distance)
-	var ridge_a: float = abs(sin(x * 0.022 + cos(z * 0.013) * 1.7))
-	var ridge_b: float = abs(cos(z * 0.019 - sin(x * 0.017) * 1.3))
-	var ridges := pow(maxf(ridge_a * ridge_b, 0.015), 0.62) * 34.0
-	var peaks := maxf(0.0, sin(x * 0.031 + z * 0.018) * cos(z * 0.027 - x * 0.012)) * 13.0
-	var clearing := clampf(1.0 - Vector2(x, z - 8.0).length() / 46.0, 0.0, 1.0)
-	var valley_floor := rolling * (1.0 - mountain_mask * 0.45)
-	var mountain_height := (ridges + peaks + rolling * 0.6) * mountain_mask
-	var natural_height := (valley_floor + mountain_height) * (1.0 - clearing * 0.96)
-	# Flatten a broad, gently blended terrace beneath the castle so its foundation
-	# and courtyard do not intersect the steep procedural hillside.
+	var mountain_mask: float = smoothstep(86.0, 178.0, distance)
+	var wx := x + sin(z * 0.018) * 18.0 + cos(x * 0.014) * 8.0
+	var wz := z + cos(x * 0.016) * 16.0 + sin(z * 0.012) * 7.0
+	var ridge_a := abs(sin(wx * 0.031 + cos(wz * 0.021) * 1.6))
+	var ridge_b := abs(cos(wz * 0.027 - sin(wx * 0.019) * 1.25))
+	var ridged := pow(maxf(ridge_a * ridge_b, 0.008), 0.48) * 48.0
+	var peaks := pow(maxf(0.0, sin(wx * 0.047) * cos(wz * 0.039)), 1.35) * 22.0
+	var mountain := ridged + peaks + sin(wx * 0.021 + wz * 0.013) * 5.0 + detail * 1.8
+	var clearing := clampf(1.0 - Vector2(x, z - 8.0).length() / 48.0, 0.0, 1.0)
+	var natural_height := lerpf(broad + detail, mountain, mountain_mask) * (1.0 - clearing * 0.96)
 	var castle_distance := Vector2(x + 112.0, z + 92.0).length()
-	var terrace_weight := 1.0 - smoothstep(29.0, 45.0, castle_distance)
-	return lerpf(natural_height, 5.35233, terrace_weight)
+	var terrace_weight := 1.0 - smoothstep(29.0, 47.0, castle_distance)
+	var castle_ground := lerpf(natural_height, 5.35233, terrace_weight)
+	var lake_distance := Vector2((x - 86.0) * 0.82, (z + 82.0) * 1.12).length()
+	var lake_basin := (1.0 - smoothstep(18.0, 38.0, lake_distance)) * 5.2
+	return castle_ground - lake_basin
 
 func _build_world() -> void:
 	var world_env := WorldEnvironment.new()
 	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.39, 0.59, 0.72)
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.66, 0.75, 0.82)
-	env.ambient_light_energy = 0.82
+	var sky := Sky.new()
+	var sky_material := ProceduralSkyMaterial.new()
+	sky_material.sky_top_color = Color(0.055, 0.16, 0.28)
+	sky_material.sky_horizon_color = Color(0.48, 0.68, 0.78)
+	sky_material.ground_bottom_color = Color(0.075, 0.105, 0.075)
+	sky_material.ground_horizon_color = Color(0.42, 0.55, 0.50)
+	sky_material.sun_angle_max = 18.0
+	sky.sky_material = sky_material
+	env.background_mode = Environment.BG_SKY
+	env.sky = sky
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	env.ambient_light_sky_contribution = 0.72
+	env.ambient_light_energy = 0.9
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.62, 0.72, 0.76)
-	env.fog_density = 0.0018
+	env.fog_light_color = Color(0.57, 0.69, 0.70)
+	env.fog_density = 0.00115
 	env.volumetric_fog_enabled = false
 	world_env.environment = env
 	add_child(world_env)
@@ -94,6 +103,7 @@ func _build_world() -> void:
 	sun.light_energy = 1.15
 	sun.light_color = Color(1.0, 0.91, 0.76)
 	sun.shadow_enabled = true
+	sun.directional_shadow_max_distance = 180.0
 	add_child(sun)
 
 	_build_terrain()
@@ -153,23 +163,27 @@ float hash(vec2 p) {
 }
 float noise2(vec2 p) {
 	vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f);
-	return mix(mix(hash(i), hash(i+vec2(1.0,0.0)), f.x),
-		mix(hash(i+vec2(0.0,1.0)), hash(i+vec2(1.0,1.0)), f.x), f.y);
+	return mix(mix(hash(i), hash(i+vec2(1.0,0.0)), f.x), mix(hash(i+vec2(0.0,1.0)), hash(i+vec2(1.0,1.0)), f.x), f.y);
 }
 void fragment() {
-	vec2 p = world_pos.xz * 0.085;
-	float grain = noise2(p) * 0.55 + noise2(p * 3.1) * 0.30 + noise2(p * 8.7) * 0.15;
-	float patches = noise2(world_pos.xz * 0.021);
-	float altitude = clamp(world_pos.y / 58.0, 0.0, 1.0);
-	vec3 grass = mix(vec3(0.105,0.17,0.105), vec3(0.22,0.29,0.16), grain);
-	vec3 soil = mix(vec3(0.22,0.17,0.105), vec3(0.34,0.26,0.16), grain);
-	vec3 rock = mix(vec3(0.25,0.27,0.26), vec3(0.43,0.42,0.37), grain);
-	float dirt_mask = smoothstep(0.68,0.84,patches) * 0.62;
-	float rock_mask = smoothstep(0.35,0.78,altitude) * 0.82;
-	vec3 color = mix(grass, soil, dirt_mask);
-	color = mix(color, rock, rock_mask);
-	ALBEDO = color;
-	ROUGHNESS = 0.94;
+	vec2 p = world_pos.xz * 0.12;
+	float grain = noise2(p) * 0.48 + noise2(p * 2.7) * 0.31 + noise2(p * 8.2) * 0.21;
+	float broad = noise2(world_pos.xz * 0.018);
+	float altitude = clamp((world_pos.y + 5.0) / 76.0, 0.0, 1.0);
+	float slope = 1.0 - clamp(NORMAL.y, 0.0, 1.0);
+	vec3 meadow = mix(vec3(0.075,0.145,0.075), vec3(0.19,0.30,0.12), grain);
+	vec3 loam = mix(vec3(0.19,0.135,0.075), vec3(0.32,0.235,0.13), grain);
+	vec3 stone = mix(vec3(0.20,0.22,0.21), vec3(0.43,0.42,0.36), grain);
+	vec3 alpine = mix(vec3(0.34,0.38,0.36), vec3(0.62,0.64,0.59), grain);
+	float soil_mask = smoothstep(0.61,0.79,broad) * 0.72;
+	float cliff_mask = smoothstep(0.22,0.62,slope);
+	float high_mask = smoothstep(0.52,0.82,altitude);
+	vec3 color = mix(meadow, loam, soil_mask);
+	color = mix(color, stone, max(cliff_mask, high_mask * 0.68));
+	color = mix(color, alpine, smoothstep(0.86,0.98,altitude) * 0.62);
+	float mottling = (noise2(world_pos.xz * 0.9) - 0.5) * 0.055;
+	ALBEDO = max(color + vec3(mottling), vec3(0.015));
+	ROUGHNESS = mix(0.98, 0.78, cliff_mask * 0.45);
 }
 """
 	terrain_material.shader = terrain_shader
