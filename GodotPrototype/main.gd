@@ -124,7 +124,7 @@ void fragment() {
 	vec2 p = world_pos.xz * 0.075;
 	float n = noise2(p) * 0.55 + noise2(p * 3.7) * 0.30 + noise2(p * 11.0) * 0.15;
 	float patches = noise2(world_pos.xz * 0.018);
-	vec3 grass = mix(vec3(0.075,0.17,0.075), vec3(0.22,0.34,0.12), n);
+	vec3 grass = mix(vec3(0.16,0.18,0.11), vec3(0.28,0.25,0.16), n);
 	vec3 earth = vec3(0.27,0.22,0.14);
 	vec3 stone = vec3(0.30,0.31,0.29);
 	float dirt_mask = smoothstep(0.66,0.82, patches);
@@ -181,100 +181,6 @@ func _build_clouds() -> void:
 		var scale_z := rng.randf_range(7.0, 16.0)
 		clouds.append(Transform3D(Basis().scaled(Vector3(scale_x, scale_y, scale_z)), Vector3(x, y, z)))
 	_add_multimesh(cloud_mesh, cloud_mat, clouds, "DistantCloudBanks")
-
-func _build_nature() -> void:
-	var trunk_mesh := CylinderMesh.new()
-	trunk_mesh.top_radius = 0.28
-	trunk_mesh.bottom_radius = 0.42
-	trunk_mesh.height = 5.2
-	var bark_mat := StandardMaterial3D.new()
-	bark_mat.albedo_color = Color(0.24, 0.14, 0.08)
-	bark_mat.roughness = 1.0
-
-	var canopy_mesh := SphereMesh.new()
-	canopy_mesh.radius = 2.35
-	canopy_mesh.height = 4.7
-	var leaf_mat := StandardMaterial3D.new()
-	leaf_mat.albedo_color = Color(0.10, 0.30, 0.14)
-	leaf_mat.roughness = 1.0
-	var leaf_light_mat := StandardMaterial3D.new()
-	leaf_light_mat.albedo_color = Color(0.18, 0.39, 0.17)
-	leaf_light_mat.roughness = 1.0
-
-	var trunk_transforms: Array[Transform3D] = []
-	var canopy_transforms: Array[Transform3D] = []
-	for i in range(180):
-		var x := rng.randf_range(-WORLD_HALF_SIZE + 12.0, WORLD_HALF_SIZE - 12.0)
-		var z := rng.randf_range(-WORLD_HALF_SIZE + 12.0, WORLD_HALF_SIZE - 12.0)
-		if Vector2(x, z - 8.0).length() < 20.0:
-			continue
-		if absf(x) < 8.0 and z > -130.0 and z < 55.0:
-			continue
-		var ground_y := _terrain_height(x, z)
-		var height := rng.randf_range(4.4, 7.2)
-		var width := rng.randf_range(0.78, 1.35)
-		var basis := Basis().scaled(Vector3(width, height / 5.2, width))
-		trunk_transforms.append(Transform3D(basis, Vector3(x, ground_y + height * 0.5, z)))
-		var crown_scale := rng.randf_range(0.85, 1.35)
-		var crown_basis := Basis().scaled(Vector3(crown_scale, crown_scale, crown_scale))
-		canopy_transforms.append(Transform3D(crown_basis, Vector3(x, ground_y + height * 0.78, z)))
-	_add_multimesh(trunk_mesh, bark_mat, trunk_transforms, "ForestTreeTrunks")
-	_add_multimesh(canopy_mesh, leaf_mat, canopy_transforms, "ForestCanopies")
-
-	var bush_mesh := SphereMesh.new()
-	bush_mesh.radius = 0.85
-	bush_mesh.height = 1.35
-	var bush_mat := StandardMaterial3D.new()
-	bush_mat.albedo_color = Color(0.15, 0.34, 0.13)
-	bush_mat.roughness = 1.0
-	var bushes: Array[Transform3D] = []
-	for i in range(280):
-		var x := rng.randf_range(-WORLD_HALF_SIZE, WORLD_HALF_SIZE)
-		var z := rng.randf_range(-WORLD_HALF_SIZE, WORLD_HALF_SIZE)
-		if Vector2(x, z - 8.0).length() < 13.0:
-			continue
-		if absf(x) < 6.0 and z > -125.0 and z < 45.0:
-			continue
-		var s := rng.randf_range(0.65, 1.5)
-		bushes.append(Transform3D(Basis().scaled(Vector3(s, s, s)), Vector3(x, _terrain_height(x, z) + 0.48 * s, z)))
-	_add_multimesh(bush_mesh, bush_mat, bushes, "ForestBushes")
-
-	var rock_mesh := SphereMesh.new()
-	rock_mesh.radius = 1.0
-	rock_mesh.height = 1.4
-	var rock_mat := StandardMaterial3D.new()
-	rock_mat.albedo_color = Color(0.34, 0.36, 0.33)
-	rock_mat.roughness = 1.0
-	var rocks: Array[Transform3D] = []
-	for i in range(100):
-		var x := rng.randf_range(-WORLD_HALF_SIZE, WORLD_HALF_SIZE)
-		var z := rng.randf_range(-WORLD_HALF_SIZE, WORLD_HALF_SIZE)
-		if Vector2(x, z - 8.0).length() < 12.0:
-			continue
-		var s := rng.randf_range(0.45, 2.0)
-		rocks.append(Transform3D(Basis().scaled(Vector3(s * 1.3, s * 0.75, s)), Vector3(x, _terrain_height(x, z) + s * 0.35, z)))
-	_add_multimesh(rock_mesh, rock_mat, rocks, "ScatteredRocks")
-
-	var blade_mesh := CylinderMesh.new()
-	blade_mesh.top_radius = 0.015
-	blade_mesh.bottom_radius = 0.07
-	blade_mesh.height = 0.55
-	var blade_mat := StandardMaterial3D.new()
-	blade_mat.albedo_color = Color(0.34, 0.53, 0.22)
-	blade_mat.roughness = 1.0
-	var grass_transforms: Array[Transform3D] = []
-	for i in range(1400):
-		var x := rng.randf_range(-WORLD_HALF_SIZE, WORLD_HALF_SIZE)
-		var z := rng.randf_range(-WORLD_HALF_SIZE, WORLD_HALF_SIZE)
-		if Vector2(x, z - 8.0).length() < 11.0:
-			continue
-		if absf(x) < 5.5 and z > -125.0 and z < 45.0:
-			continue
-		var s := rng.randf_range(0.55, 1.35)
-		var rot := rng.randf_range(0.0, TAU)
-		var basis := Basis(Vector3.UP, rot).scaled(Vector3(s, s, s))
-		grass_transforms.append(Transform3D(basis, Vector3(x, _terrain_height(x, z) + 0.18, z)))
-	_add_multimesh(blade_mesh, blade_mat, grass_transforms, "GrassField")
 
 func _add_multimesh(mesh: Mesh, material: Material, transforms: Array[Transform3D], node_name: String) -> void:
 	if transforms.is_empty():
@@ -682,31 +588,24 @@ func _physics_process(delta: float) -> void:
 
 func _build_resource_system() -> void:
 	# Small, individually harvestable deposits near the starting clearing.
-	var tree_positions := [Vector2(6.0, 7.0), Vector2(-7.0, 10.0), Vector2(10.0, -5.0)]
-	for p in tree_positions:
+	var wood_positions := [Vector2(6.0, 7.0), Vector2(-7.0, 10.0), Vector2(10.0, -5.0)]
+	for p in wood_positions:
 		var root := Node3D.new()
-		root.name = "HarvestableTree"
-		var trunk := MeshInstance3D.new()
-		var trunk_mesh := CylinderMesh.new()
-		trunk_mesh.top_radius = 0.22
-		trunk_mesh.bottom_radius = 0.34
-		trunk_mesh.height = 2.8
-		trunk.mesh = trunk_mesh
-		var bark := StandardMaterial3D.new()
-		bark.albedo_color = Color(0.30, 0.17, 0.09)
-		trunk.material_override = bark
-		trunk.position.y = 1.4
-		root.add_child(trunk)
-		var crown := MeshInstance3D.new()
-		var crown_mesh := SphereMesh.new()
-		crown_mesh.radius = 1.15
-		crown_mesh.height = 2.0
-		crown.mesh = crown_mesh
-		var leaves := StandardMaterial3D.new()
-		leaves.albedo_color = Color(0.12, 0.36, 0.14)
-		crown.material_override = leaves
-		crown.position.y = 3.0
-		root.add_child(crown)
+		root.name = "TimberPile"
+		var log_mesh := CylinderMesh.new()
+		log_mesh.top_radius = 0.20
+		log_mesh.bottom_radius = 0.20
+		log_mesh.height = 2.0
+		var log_mat := StandardMaterial3D.new()
+		log_mat.albedo_color = Color(0.34, 0.20, 0.11)
+		log_mat.roughness = 1.0
+		for i in range(3):
+			var log_piece := MeshInstance3D.new()
+			log_piece.mesh = log_mesh
+			log_piece.material_override = log_mat
+			log_piece.rotation.z = PI * 0.5
+			log_piece.position = Vector3(0.0, 0.22 + float(i % 2) * 0.30, float(i - 1) * 0.22)
+			root.add_child(log_piece)
 		root.position = Vector3(p.x, _terrain_height(p.x, p.y), p.y)
 		add_child(root)
 		resource_nodes.append({"node": root, "kind": "wood", "amount": 3})
@@ -731,20 +630,22 @@ func _build_resource_system() -> void:
 		add_child(root)
 		resource_nodes.append({"node": root, "kind": "stone", "amount": 2})
 
-	var bush_positions := [Vector2(-5.0, -2.0), Vector2(5.0, -10.0)]
-	for p in bush_positions:
+	var fiber_positions := [Vector2(-5.0, -2.0), Vector2(5.0, -10.0)]
+	for p in fiber_positions:
 		var root := Node3D.new()
-		root.name = "HarvestableFiberBush"
-		var bush := MeshInstance3D.new()
-		var bush_mesh := SphereMesh.new()
-		bush_mesh.radius = 0.72
-		bush_mesh.height = 1.0
-		bush.mesh = bush_mesh
-		var bush_mat := StandardMaterial3D.new()
-		bush_mat.albedo_color = Color(0.18, 0.42, 0.16)
-		bush.material_override = bush_mat
-		bush.position.y = 0.45
-		root.add_child(bush)
+		root.name = "CraftingMaterialBundle"
+		var bundle_mesh := BoxMesh.new()
+		bundle_mesh.size = Vector3(1.0, 0.22, 0.72)
+		var bundle_mat := StandardMaterial3D.new()
+		bundle_mat.albedo_color = Color(0.42, 0.31, 0.19)
+		bundle_mat.roughness = 1.0
+		for i in range(3):
+			var strip := MeshInstance3D.new()
+			strip.mesh = bundle_mesh
+			strip.material_override = bundle_mat
+			strip.position = Vector3(0.0, 0.18 + float(i) * 0.11, 0.0)
+			strip.rotation.y = float(i) * 0.35
+			root.add_child(strip)
 		root.position = Vector3(p.x, _terrain_height(p.x, p.y), p.y)
 		add_child(root)
 		resource_nodes.append({"node": root, "kind": "fiber", "amount": 2})
