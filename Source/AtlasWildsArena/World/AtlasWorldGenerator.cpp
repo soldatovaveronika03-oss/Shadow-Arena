@@ -12,12 +12,12 @@ namespace
     constexpr float WorldHalfSize = 40000.0f;
     constexpr float TerrainCell = (WorldHalfSize * 2.0f) / TerrainQuads;
 
-    UMaterialInstanceDynamic* MakeTintedMaterial(UObject* Outer, const TCHAR* AssetPath, const FLinearColor& Tint)
+    UMaterialInstanceDynamic* MakeTintedMaterial(UObject* Outer, const FLinearColor& Tint)
     {
-        static ConstructorHelpers::FObjectFinder<UMaterialInterface> ShapeMaterial(
+        UMaterialInterface* ShapeMaterial = LoadObject<UMaterialInterface>(nullptr,
             TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
-        if (!ShapeMaterial.Succeeded()) return nullptr;
-        UMaterialInstanceDynamic* Material = UMaterialInstanceDynamic::Create(ShapeMaterial.Object, Outer);
+        if (!ShapeMaterial) return nullptr;
+        UMaterialInstanceDynamic* Material = UMaterialInstanceDynamic::Create(ShapeMaterial, Outer);
         if (Material) Material->SetVectorParameterValue(TEXT("Color"), Tint);
         return Material;
     }
@@ -129,7 +129,7 @@ void AAtlasWorldGenerator::BuildWorld()
             const int32 B = (X + 1) * (TerrainQuads + 1) + Y;
             const int32 C = A + 1;
             const int32 D = B + 1;
-            Triangles.Append({A, B, C, B, D, C});
+            Triangles.Add(A); Triangles.Add(B); Triangles.Add(C);\n            Triangles.Add(B); Triangles.Add(D); Triangles.Add(C);
 
             const FVector N1 = FVector::CrossProduct(Vertices[B] - Vertices[A], Vertices[C] - Vertices[A]);
             const FVector N2 = FVector::CrossProduct(Vertices[D] - Vertices[B], Vertices[C] - Vertices[B]);
@@ -139,7 +139,7 @@ void AAtlasWorldGenerator::BuildWorld()
     for (FVector& Normal : Normals) Normal.Normalize();
 
     Terrain->CreateMeshSection_LinearColor(0, Vertices, Triangles, Normals, UVs, Colors, TArray<FProcMeshTangent>(), true);
-    if (UMaterialInstanceDynamic* GroundMat = MakeTintedMaterial(this, TEXT(""), FLinearColor(0.18f, 0.31f, 0.13f)))
+    if (UMaterialInstanceDynamic* GroundMat = MakeTintedMaterial(this, FLinearColor(0.18f, 0.31f, 0.13f)))
         Terrain->SetMaterial(0, GroundMat);
 
     // A gently winding water ribbon follows the valley and has collision disabled.
@@ -163,17 +163,12 @@ void AAtlasWorldGenerator::BuildWorld()
         if (I < RiverSegments)
         {
             const int32 A = I * 2, B = A + 1, C = A + 2, D = A + 3;
-            WaterTriangles.Append({A, C, B, B, C, D});
+            WaterTriangles.Add(A); WaterTriangles.Add(B); WaterTriangles.Add(C);\n            WaterTriangles.Add(B); WaterTriangles.Add(D); WaterTriangles.Add(C);
         }
     }
     River->CreateMeshSection_LinearColor(0, WaterVertices, WaterTriangles, WaterNormals, WaterUVs, WaterColors, TArray<FProcMeshTangent>(), false);
-    if (UMaterialInstanceDynamic* WaterMat = MakeTintedMaterial(this, TEXT(""), FLinearColor(0.035f, 0.28f, 0.38f)))
+    if (UMaterialInstanceDynamic* WaterMat = MakeTintedMaterial(this, FLinearColor(0.035f, 0.28f, 0.38f)))
         River->SetMaterial(0, WaterMat);
-
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> ConeMesh(TEXT("/Engine/BasicShapes/Cone.Cone"));
-    if (CubeMesh.Succeeded()) { TreeTrunks->SetStaticMesh(CubeMesh.Object); Rocks->SetStaticMesh(CubeMesh.Object); }
-    if (ConeMesh.Succeeded()) TreeCrowns->SetStaticMesh(ConeMesh.Object);
 
     FRandomStream Random(20261122);
     for (int32 X = -22; X <= 22; ++X)
