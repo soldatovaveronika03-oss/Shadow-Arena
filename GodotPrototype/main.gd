@@ -369,17 +369,25 @@ func _build_foliage_and_rocks() -> void:
 	flower_blue.albedo_color = Color(0.40, 0.56, 0.82)
 	var flower_white := StandardMaterial3D.new()
 	flower_white.albedo_color = Color(0.84, 0.83, 0.68)
-	var flower_sets: Array[Array] = [[], [], []]
+	var flower_gold_transforms: Array[Transform3D] = []
+	var flower_blue_transforms: Array[Transform3D] = []
+	var flower_white_transforms: Array[Transform3D] = []
 	for i in range(int(210 * foliage_density)):
 		var fx := rng.randf_range(-WORLD_HALF_SIZE + 8.0, WORLD_HALF_SIZE - 8.0)
 		var fz := rng.randf_range(-WORLD_HALF_SIZE + 8.0, WORLD_HALF_SIZE - 8.0)
 		if Vector2(fx, fz - 8.0).length() < 34.0 or _terrain_height(fx, fz) > 30.0:
 			continue
 		var flower_scale := rng.randf_range(0.12, 0.24)
-		flower_sets[i % 3].append(Transform3D(Basis().scaled(Vector3(flower_scale, flower_scale * 0.7, flower_scale)), Vector3(fx, _terrain_height(fx, fz) + rng.randf_range(0.42, 0.72), fz)))
-	_add_multimesh(flower_mesh, flower_gold, flower_sets[0], "GoldenMeadowFlowers")
-	_add_multimesh(flower_mesh, flower_blue, flower_sets[1], "BlueMeadowFlowers")
-	_add_multimesh(flower_mesh, flower_white, flower_sets[2], "WhiteMeadowFlowers")
+		var flower_transform := Transform3D(Basis().scaled(Vector3(flower_scale, flower_scale * 0.7, flower_scale)), Vector3(fx, _terrain_height(fx, fz) + rng.randf_range(0.42, 0.72), fz))
+		if i % 3 == 0:
+			flower_gold_transforms.append(flower_transform)
+		elif i % 3 == 1:
+			flower_blue_transforms.append(flower_transform)
+		else:
+			flower_white_transforms.append(flower_transform)
+	_add_multimesh(flower_mesh, flower_gold, flower_gold_transforms, "GoldenMeadowFlowers")
+	_add_multimesh(flower_mesh, flower_blue, flower_blue_transforms, "BlueMeadowFlowers")
+	_add_multimesh(flower_mesh, flower_white, flower_white_transforms, "WhiteMeadowFlowers")
 
 	var grass_mesh := CapsuleMesh.new()
 	grass_mesh.radius = 0.045
