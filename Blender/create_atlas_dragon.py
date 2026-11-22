@@ -128,7 +128,7 @@ def action(name, frames):
     arm.animation_data.action=new_action
     bpy.ops.object.mode_set(mode='POSE')
     for p in arm.pose.bones: p.rotation_mode='XYZ'
-    bpy.context.scene.frame_start=1; bpy.context.scene.frame_end=max(f for _,f in frames)
+    bpy.context.scene.frame_start=1; bpy.context.scene.frame_end=max(f for _,f,_ in frames)
     for bone_name, frame, rot in frames:
         p=arm.pose.bones[bone_name]; p.rotation_euler=rot; p.keyframe_insert(data_path="rotation_euler",frame=frame,group=bone_name)
     bpy.ops.object.mode_set(mode='OBJECT')
