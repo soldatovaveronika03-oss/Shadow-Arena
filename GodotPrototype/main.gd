@@ -5,6 +5,7 @@ const MODEL_PATHS = [
 	"res://assets/bdd1f502-bdb6-4287-8d2c-7799487a4999.glb",
 	"res://assets/fb414334-be07-4e6e-9570-0fcc8769768a.glb"
 ]
+const HERO_MODEL_FORWARD_OFFSET := PI
 const WORLD_HALF_SIZE := 220.0
 const TERRAIN_CELLS := 64
 const TERRAIN_STEP := (WORLD_HALF_SIZE * 2.0) / float(TERRAIN_CELLS)
@@ -41,7 +42,8 @@ var resource_nodes: Array[Dictionary] = []
 var inventory_label: Label
 var resource_hint_label: Label
 
-func _ready() -> void:
+	# Run procedural fallback posing after imported AnimationPlayers update.
+	process_priority = 100
 	rng.seed = 482019
 	_build_world()
 	_build_player()
@@ -614,17 +616,38 @@ func _find_animation_players_recursive(node: Node, players: Array[AnimationPlaye
 		_find_animation_players_recursive(child, players)
 
 func _play_model_animation(players: Array[AnimationPlayer], keywords: Array, restart: bool = false) -> String:
+	var selected_player: AnimationPlayer = null
+	var selected_name := ""
 	for animation_player in players:
 		if not is_instance_valid(animation_player):
 			continue
-		var animation_names := animation_player.get_animation_list()
-		for keyword in keywords:
-			for animation_name in animation_names:
-				if str(animation_name).to_lower().contains(str(keyword)):
-					if restart or animation_player.current_animation != animation_name:
-						animation_player.play(animation_name)
-					return str(animation_name)
-	return ""
+		for animation_name in animation_player.get_animation_list():
+			var lower_name := str(animation_name).to_lower()
+			for keyword in keywords:
+				if lower_name.contains(str(keyword).to_lower()):
+					selected_player = animation_player
+					selected_name = str(animation_name)
+					break
+			if selected_player != null:
+				break
+		if selected_player != null:
+			break
+	# Stop stale clips when this model has no clip for the requested state.
+	# The procedural Skeleton3D fallback can then animate the rig without
+	# an unrelated imported clip overwriting its bone poses.
+	for animation_player in players:
+		if not is_instance_valid(animation_player):
+			continue
+		if animation_player != selected_player and animation_player.is_playing():
+			animation_player.stop()
+	if selected_player == null:
+		for animation_player in players:
+			if is_instance_valid(animation_player) and animation_player.is_playing():
+				animation_player.stop()
+		return ""
+	if restart or selected_player.current_animation != selected_name:
+		selected_player.play(selected_name)
+	return selected_name
 
 func _collect_skeleton_bones(root: Node) -> Array[Dictionary]:
 	var found: Array[Dictionary] = []
@@ -738,6 +761,13 @@ func _process(delta: float) -> void:
 		var jump_bob := 0.10 if jump_mix > 0.5 else 0.0
 		hero_visual.position = hero_visual_base_position + Vector3(0, run_bob + jump_bob, 0)
 		hero_visual.rotation.z = (sin(hero_run_phase) * 0.035 if moving else 0.0) + attack_mix * 0.32
+		# Uploaded GLB faces +Z; Godot's character forward is -Z.
+		# Rotate only the visual model, never the CharacterBody3D root,
+		# because the camera pivot is attached to that root.
+		if moving:
+			var move_direction := Vector3(player.velocity.x, 0.0, player.velocity.z).normalized()
+			var desired_facing := atan2(-move_direction.x, -move_direction.z) + HERO_MODEL_FORWARD_OFFSET
+			hero_visual.rotation.y = lerp_angle(hero_visual.rotation.y, desired_facing, minf(delta * 12.0, 1.0))
 		_animate_parts(hero_parts, hero_run_phase, 1.0 if moving else 0.0, attack_mix, 0.0, jump_mix)
 		_animate_skeleton_bones(hero_skeleton_bones, hero_run_phase, 1.0 if moving else 0.0, attack_mix, jump_mix)
 		var desired_hero_animation := "attack" if hero_attack_timer > 0.0 else ("jump" if jump_mix > 0.5 else ("run" if moving else "idle"))
@@ -785,8 +815,8 @@ func _physics_process(delta: float) -> void:
 		player.global_position.y = ground_y + 0.08
 		if player.velocity.y < 0.0:
 			player.velocity.y = 0.0
-	if direction.length() > 0.1:
-		player.rotation.y = lerp_angle(player.rotation.y, atan2(-direction.x, -direction.z), delta * 10.0)
+	# Keep the CharacterBody3D root unrotated so the camera never inherits
+	# the hero's facing rotation. The visual model turns independently in _process().
 
 
 func _build_resource_system() -> void:
