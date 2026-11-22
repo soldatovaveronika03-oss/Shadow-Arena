@@ -386,34 +386,61 @@ func _add_fallback_hero(parent: Node3D) -> void:
 	parent.add_child(body)
 
 func _build_models() -> void:
-	# The two uploaded creatures become independent AI-controlled units.
-	for i in range(1, MODEL_PATHS.size()):
-		if not ResourceLoader.exists(MODEL_PATHS[i]):
-			continue
-		var packed = load(MODEL_PATHS[i]) as PackedScene
-		if packed == null:
-			continue
-		var unit := CharacterBody3D.new()
-		unit.name = "WildCreature_" + str(i + 1)
-		var x := -15.0 if i == 1 else 15.0
-		var z := -22.0
-		unit.position = Vector3(x, _terrain_height(x, z) + 0.9, z)
-		var shape_node := CollisionShape3D.new()
-		var capsule := CapsuleShape3D.new()
-		capsule.radius = 0.75
-		capsule.height = 1.8
-		shape_node.shape = capsule
-		shape_node.position.y = 0.9
-		unit.add_child(shape_node)
-		var model := packed.instantiate()
-		model.name = "CreatureModel"
-		_fit_model_to_height(model, 3.2)
-		unit.add_child(model)
-		add_child(unit)
-		var parts := _collect_named_rig_parts(model, ["wing", "arm", "leg", "tail"])
-		var anim_players := _find_animation_players(model)
-		_play_model_animation(anim_players, ["idle", "stand", "fly"] if i == 1 else ["idle", "stand"])
-		ai_units.append({"body": unit, "model": model, "parts": parts, "animations": anim_players, "current_animation": "idle", "home": Vector3(x, 0, z), "phase": rng.randf_range(0.0, TAU), "state": "wander", "speed": rng.randf_range(2.0, 3.2), "dragon": i == 1, "model_base": model.position})
+	# The newly uploaded castle model is placed as a landmark in the distant valley.
+	var castle_path := "res://assets/b92be73b-399b-4f3c-a238-6124bf7f379d.glb"
+	if ResourceLoader.exists(castle_path):
+		var castle_scene = load(castle_path) as PackedScene
+		if castle_scene != null:
+			var castle := castle_scene.instantiate() as Node3D
+			castle.name = "GreatCastle_350x"
+			castle.scale = Vector3.ONE * 350.0
+			castle.position = Vector3(0.0, _terrain_height(0.0, -155.0), -155.0)
+			add_child(castle)
+
+	# One dragon asset is reused for a whole size range; the largest is 50x
+	# the prototype creature scale. Smaller dragons use 5x, 10x, 20x and 35x.
+	var dragon_sizes: Array[float] = [5.0, 10.0, 20.0, 35.0, 50.0]
+	var dragon_spawns: Array[Vector3] = [
+		Vector3(-58.0, 0.0, -72.0),
+		Vector3(-34.0, 0.0, -96.0),
+		Vector3(34.0, 0.0, -92.0),
+		Vector3(62.0, 0.0, -122.0),
+		Vector3(0.0, 0.0, -188.0)
+	]
+	var dragon_path := "res://assets/bdd1f502-bdb6-4287-8d2c-7799487a4999.glb"
+	for i in range(dragon_sizes.size()):
+		_spawn_creature(dragon_path, true, dragon_sizes[i], dragon_spawns[i], "Dragon_" + str(i + 1))
+
+	# Keep the other uploaded creature as an additional AI-controlled enemy.
+	var creature_path := "res://assets/fb414334-be07-4e6e-9570-0fcc8769768a.glb"
+	_spawn_creature(creature_path, false, 1.0, Vector3(18.0, 0.0, -26.0), "WildCreature")
+
+func _spawn_creature(model_path: String, is_dragon: bool, size_multiplier: float, spawn: Vector3, unit_name: String) -> void:
+	if not ResourceLoader.exists(model_path):
+		return
+	var packed = load(model_path) as PackedScene
+	if packed == null:
+		return
+	var unit := CharacterBody3D.new()
+	unit.name = unit_name
+	unit.position = Vector3(spawn.x, _terrain_height(spawn.x, spawn.z) + 0.9, spawn.z)
+	var shape_node := CollisionShape3D.new()
+	var capsule := CapsuleShape3D.new()
+	# Keep collision practical on mobile even for visually gigantic dragons.
+	capsule.radius = 0.75
+	capsule.height = 1.8
+	shape_node.shape = capsule
+	shape_node.position.y = 0.9
+	unit.add_child(shape_node)
+	var model := packed.instantiate()
+	model.name = unit_name + "_Model"
+	_fit_model_to_height(model, 3.2 * size_multiplier)
+	unit.add_child(model)
+	add_child(unit)
+	var parts := _collect_named_rig_parts(model, ["wing", "arm", "leg", "tail"])
+	var anim_players := _find_animation_players(model)
+	_play_model_animation(anim_players, ["idle", "stand", "fly"] if is_dragon else ["idle", "stand"])
+	ai_units.append({"body": unit, "model": model, "parts": parts, "animations": anim_players, "current_animation": "idle", "home": Vector3(spawn.x, 0.0, spawn.z), "phase": rng.randf_range(0.0, TAU), "state": "wander", "speed": rng.randf_range(2.0, 3.2), "dragon": is_dragon, "model_base": model.position, "size_multiplier": size_multiplier})
 
 func _build_ui() -> void:
 	var layer := CanvasLayer.new()
