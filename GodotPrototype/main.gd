@@ -7,7 +7,7 @@ const MODEL_PATHS = [
 ]
 const HERO_MODEL_FORWARD_OFFSET := PI
 const WORLD_HALF_SIZE := 220.0
-const TERRAIN_CELLS := 112
+const TERRAIN_CELLS := 64
 const TERRAIN_STEP := (WORLD_HALF_SIZE * 2.0) / float(TERRAIN_CELLS)
 
 var player: CharacterBody3D
@@ -53,232 +53,37 @@ func _ready() -> void:
 
 
 func _terrain_height(x: float, z: float) -> float:
-	# Layered valley, eroded foothills and broken alpine ridgelines.
-	var broad := sin(x * 0.012 + sin(z * 0.009) * 1.4) * 4.2 + cos(z * 0.016 - x * 0.006) * 3.0
-	var detail := sin(x * 0.043 + z * 0.021) * 1.15 + cos(z * 0.052 - x * 0.027) * 0.82 + sin((x - z) * 0.091) * 0.32
+	# Broad valley around the spawn, with a rising mountain rim and layered ridges.
+	var rolling := sin(x * 0.018) * 2.8 + cos(z * 0.021) * 2.2
+	rolling += sin((x + z) * 0.011) * 1.8 + cos((x - z) * 0.014) * 1.1
 	var distance := Vector2(x * 0.92, z * 1.04).length()
-	var mountain_mask: float = smoothstep(86.0, 178.0, distance)
-	var wx := x + sin(z * 0.018) * 18.0 + cos(x * 0.014) * 8.0
-	var wz := z + cos(x * 0.016) * 16.0 + sin(z * 0.012) * 7.0
-	var ridge_a := abs(sin(wx * 0.031 + cos(wz * 0.021) * 1.6))
-	var ridge_b := abs(cos(wz * 0.027 - sin(wx * 0.019) * 1.25))
-	var ridged := pow(maxf(ridge_a * ridge_b, 0.008), 0.48) * 48.0
-	var peaks := pow(maxf(0.0, sin(wx * 0.047) * cos(wz * 0.039)), 1.35) * 22.0
-	var mountain := ridged + peaks + sin(wx * 0.021 + wz * 0.013) * 5.0 + detail * 1.8
-	var clearing := clampf(1.0 - Vector2(x, z - 8.0).length() / 48.0, 0.0, 1.0)
-	var natural_height := lerpf(broad + detail, mountain, mountain_mask) * (1.0 - clearing * 0.96)
+	var mountain_mask: float = smoothstep(112.0, 198.0, distance)
+	var ridge_a: float = abs(sin(x * 0.022 + cos(z * 0.013) * 1.7))
+	var ridge_b: float = abs(cos(z * 0.019 - sin(x * 0.017) * 1.3))
+	var ridges := pow(maxf(ridge_a * ridge_b, 0.015), 0.62) * 34.0
+	var peaks := maxf(0.0, sin(x * 0.031 + z * 0.018) * cos(z * 0.027 - x * 0.012)) * 13.0
+	var clearing := clampf(1.0 - Vector2(x, z - 8.0).length() / 46.0, 0.0, 1.0)
+	var valley_floor := rolling * (1.0 - mountain_mask * 0.45)
+	var mountain_height := (ridges + peaks + rolling * 0.6) * mountain_mask
+	var natural_height := (valley_floor + mountain_height) * (1.0 - clearing * 0.96)
+	# Flatten a broad, gently blended terrace beneath the castle so its foundation
+	# and courtyard do not intersect the steep procedural hillside.
 	var castle_distance := Vector2(x + 112.0, z + 92.0).length()
-	var terrace_weight := 1.0 - smoothstep(29.0, 47.0, castle_distance)
-	var castle_ground := lerpf(natural_height, 5.35233, terrace_weight)
-	var lake_distance := Vector2((x - 86.0) * 0.82, (z + 82.0) * 1.12).length()
-	var lake_basin := (1.0 - smoothstep(18.0, 38.0, lake_distance)) * 5.2
-	return castle_ground - lake_basin
-
-func _build_world() -> void:
-	var world_env := WorldEnvironment.new()
-	var env := Environment.new()
-	var sky := Sky.new()
-	var sky_material := ProceduralSkyMaterial.new()
-	sky_material.sky_top_color = Color(0.055, 0.16, 0.28)
-	sky_material.sky_horizon_color = Color(0.48, 0.68, 0.78)
-	sky_material.ground_bottom_color = Color(0.075, 0.105, 0.075)
-	sky_material.ground_horizon_color = Color(0.42, 0.55, 0.50)
-	sky_material.sun_angle_max = 18.0
-	sky.sky_material = sky_material
-	env.background_mode = Environment.BG_SKY
-	env.sky = sky
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_sky_contribution = 0.72
-	env.ambient_light_energy = 0.9
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.fog_enabled = true
-	env.fog_light_color = Color(0.57, 0.69, 0.70)
-	env.fog_density = 0.00115
-	env.volumetric_fog_enabled = false
-	world_env.environment = env
-	add_child(world_env)
-
-	var sun := DirectionalLight3D.new()
-	sun.name = "WorldSun"
-	sun.rotation_degrees = Vector3(-42, -28, 0)
-	sun.light_energy = 1.15
-	sun.light_color = Color(1.0, 0.91, 0.76)
-	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 180.0
-	add_child(sun)
-
-	_build_terrain()
-	_build_water_features()
-	_build_foliage_and_rocks()
-	_build_generated_tree_landmarks()
-	_build_resource_system()
-	_build_clouds()
-	var wildlife_script := load("res://wildlife_system.gd") as Script
-	if wildlife_script != null:
-		var wildlife := Node3D.new()
-		wildlife.set_script(wildlife_script)
-		wildlife.name = "LivingWildlifeAndDragon"
-		add_child(wildlife)
-	var landmarks_script := load("res://world_features.gd") as Script
-	if landmarks_script != null:
-		var landmarks := Node3D.new()
-		landmarks.set_script(landmarks_script)
-		landmarks.name = "WorldLandmarks"
-		add_child(landmarks)
-
-func _build_terrain() -> void:
-	var surface := SurfaceTool.new()
-	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for z in range(TERRAIN_CELLS):
-		for x in range(TERRAIN_CELLS):
-			var x0 := -WORLD_HALF_SIZE + float(x) * TERRAIN_STEP
-			var z0 := -WORLD_HALF_SIZE + float(z) * TERRAIN_STEP
-			var x1 := x0 + TERRAIN_STEP
-			var z1 := z0 + TERRAIN_STEP
-			var a := Vector3(x0, _terrain_height(x0, z0), z0)
-			var b := Vector3(x1, _terrain_height(x1, z0), z0)
-			var c := Vector3(x0, _terrain_height(x0, z1), z1)
-			var d := Vector3(x1, _terrain_height(x1, z1), z1)
-			surface.add_vertex(a)
-			surface.add_vertex(c)
-			surface.add_vertex(b)
-			surface.add_vertex(b)
-			surface.add_vertex(c)
-			surface.add_vertex(d)
-	surface.generate_normals()
-	var terrain_mesh := surface.commit()
-	var terrain := MeshInstance3D.new()
-	terrain.name = "SculptedOpenWorldTerrain"
-	terrain.mesh = terrain_mesh
-	var terrain_material := ShaderMaterial.new()
-	var terrain_shader := Shader.new()
-	terrain_shader.code = """
-shader_type spatial;
-render_mode diffuse_burley, specular_schlick_ggx;
-varying vec3 world_pos;
-void vertex() {
-	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-}
-float hash(vec2 p) {
-	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-}
-float noise2(vec2 p) {
-	vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f);
-	return mix(mix(hash(i), hash(i+vec2(1.0,0.0)), f.x), mix(hash(i+vec2(0.0,1.0)), hash(i+vec2(1.0,1.0)), f.x), f.y);
-}
-void fragment() {
-	vec2 p = world_pos.xz * 0.12;
-	float grain = noise2(p) * 0.48 + noise2(p * 2.7) * 0.31 + noise2(p * 8.2) * 0.21;
-	float broad = noise2(world_pos.xz * 0.018);
-	float altitude = clamp((world_pos.y + 5.0) / 76.0, 0.0, 1.0);
-	float slope = 1.0 - clamp(NORMAL.y, 0.0, 1.0);
-	vec3 meadow = mix(vec3(0.075,0.145,0.075), vec3(0.19,0.30,0.12), grain);
-	vec3 loam = mix(vec3(0.19,0.135,0.075), vec3(0.32,0.235,0.13), grain);
-	vec3 stone = mix(vec3(0.20,0.22,0.21), vec3(0.43,0.42,0.36), grain);
-	vec3 alpine = mix(vec3(0.34,0.38,0.36), vec3(0.62,0.64,0.59), grain);
-	float soil_mask = smoothstep(0.61,0.79,broad) * 0.72;
-	float cliff_mask = smoothstep(0.22,0.62,slope);
-	float high_mask = smoothstep(0.52,0.82,altitude);
-	vec3 color = mix(meadow, loam, soil_mask);
-	color = mix(color, stone, max(cliff_mask, high_mask * 0.68));
-	color = mix(color, alpine, smoothstep(0.86,0.98,altitude) * 0.62);
-	float mottling = (noise2(world_pos.xz * 0.9) - 0.5) * 0.055;
-	ALBEDO = max(color + vec3(mottling), vec3(0.015));
-	ROUGHNESS = mix(0.98, 0.78, cliff_mask * 0.45);
-}
-"""ends Node3D
-
-const MODEL_PATHS = [
-	"res://assets/43293218-c338-4fe2-a177-32a10bffe72c.glb",
-	"res://assets/bdd1f502-bdb6-4287-8d2c-7799487a4999.glb",
-	"res://assets/fb414334-be07-4e6e-9570-0fcc8769768a.glb"
-]
-const HERO_MODEL_FORWARD_OFFSET := PI
-const WORLD_HALF_SIZE := 220.0
-const TERRAIN_CELLS := 112
-const TERRAIN_STEP := (WORLD_HALF_SIZE * 2.0) / float(TERRAIN_CELLS)
-
-var player: CharacterBody3D
-var camera_pivot: Node3D
-var camera: Camera3D
-var move_vector := Vector2.ZERO
-var look_touch := -1
-var last_touch := Vector2.ZERO
-var yaw := 0.0
-var pitch := -0.20
-var info_label: Label
-var rng := RandomNumberGenerator.new()
-var joystick_touch := -1
-var joystick_center := Vector2.ZERO
-var joystick_radius := 76.0
-var joystick_knob: Panel
-var hero_visual: Node3D
-var hero_visual_base_position := Vector3.ZERO
-var hero_attack_timer := 0.0
-var hero_jump_requested := false
-var hero_run_phase := 0.0
-var hero_parts: Array[Dictionary] = []
-var hero_animation_players: Array[AnimationPlayer] = []
-var hero_skeleton_bones: Array[Dictionary] = []
-var hero_current_animation := ""
-var wood_count := 0
-var stone_count := 0
-var fiber_count := 0
-var has_shelter_kit := false
-var shelter_built := false
-var resource_nodes: Array[Dictionary] = []
-var inventory_label: Label
-var resource_hint_label: Label
-
-func _ready() -> void:
-	# Run procedural fallback posing after imported AnimationPlayers update.
-	process_priority = 100
-	rng.seed = 482019
-	_build_world()
-	_build_player()
-	_build_models()
-	_build_ui()
-
-
-func _terrain_height(x: float, z: float) -> float:
-	# Layered valley, eroded foothills and broken alpine ridgelines.
-	var broad := sin(x * 0.012 + sin(z * 0.009) * 1.4) * 4.2 + cos(z * 0.016 - x * 0.006) * 3.0
-	var detail := sin(x * 0.043 + z * 0.021) * 1.15 + cos(z * 0.052 - x * 0.027) * 0.82 + sin((x - z) * 0.091) * 0.32
-	var distance := Vector2(x * 0.92, z * 1.04).length()
-	var mountain_mask: float = smoothstep(86.0, 178.0, distance)
-	var wx := x + sin(z * 0.018) * 18.0 + cos(x * 0.014) * 8.0
-	var wz := z + cos(x * 0.016) * 16.0 + sin(z * 0.012) * 7.0
-	var ridge_a := abs(sin(wx * 0.031 + cos(wz * 0.021) * 1.6))
-	var ridge_b := abs(cos(wz * 0.027 - sin(wx * 0.019) * 1.25))
-	var ridged := pow(maxf(ridge_a * ridge_b, 0.008), 0.48) * 48.0
-	var peaks := pow(maxf(0.0, sin(wx * 0.047) * cos(wz * 0.039)), 1.35) * 22.0
-	var mountain := ridged + peaks + sin(wx * 0.021 + wz * 0.013) * 5.0 + detail * 1.8
-	var clearing := clampf(1.0 - Vector2(x, z - 8.0).length() / 48.0, 0.0, 1.0)
-	var natural_height := lerpf(broad + detail, mountain, mountain_mask) * (1.0 - clearing * 0.96)
-	var castle_distance := Vector2(x + 112.0, z + 92.0).length()
-	var terrace_weight := 1.0 - smoothstep(29.0, 47.0, castle_distance)
+	var terrace_weight := 1.0 - smoothstep(29.0, 45.0, castle_distance)
 	return lerpf(natural_height, 5.35233, terrace_weight)
 
 func _build_world() -> void:
 	var world_env := WorldEnvironment.new()
 	var env := Environment.new()
-	var sky := Sky.new()
-	var sky_material := ProceduralSkyMaterial.new()
-	sky_material.sky_top_color = Color(0.055, 0.16, 0.28)
-	sky_material.sky_horizon_color = Color(0.48, 0.68, 0.78)
-	sky_material.ground_bottom_color = Color(0.075, 0.105, 0.075)
-	sky_material.ground_horizon_color = Color(0.42, 0.55, 0.50)
-	sky_material.sun_angle_max = 18.0
-	sky.sky_material = sky_material
-	env.background_mode = Environment.BG_SKY
-	env.sky = sky
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_sky_contribution = 0.72
-	env.ambient_light_energy = 0.9
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color(0.39, 0.59, 0.72)
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.66, 0.75, 0.82)
+	env.ambient_light_energy = 0.82
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.57, 0.69, 0.70)
-	env.fog_density = 0.00115
+	env.fog_light_color = Color(0.62, 0.72, 0.76)
+	env.fog_density = 0.0018
 	env.volumetric_fog_enabled = false
 	world_env.environment = env
 	add_child(world_env)
@@ -409,266 +214,128 @@ void fragment() {
 	add_child(road)
 
 func _build_water_features() -> void:
-	var water_shader := Shader.new()
-	water_shader.code = """
-shader_type spatial;
-render_mode blend_mix, depth_draw_opaque, cull_disabled, diffuse_burley, specular_schlick_ggx;
-void fragment() {
-	vec2 uv = UV * 2.0 - 1.0;
-	float edge = length(uv);
-	if (edge > 1.0) discard;
-	float wave_a = sin(UV.x * 38.0 + TIME * 1.25) * 0.018;
-	float wave_b = cos(UV.y * 31.0 - TIME * 0.92) * 0.016;
-	float ripple = sin((UV.x + UV.y) * 78.0 + TIME * 2.0) * 0.012;
-	float fresnel = pow(1.0 - clamp(abs(NORMAL.y), 0.0, 1.0), 2.0);
-	ALBEDO = mix(vec3(0.045,0.22,0.28), vec3(0.22,0.48,0.55), 0.35 + fresnel * 0.55 + wave_a + wave_b + ripple);
-	METALLIC = 0.18;
-	ROUGHNESS = 0.12 + edge * 0.12;
-	SPECULAR = 0.85;
-	ALPHA = 0.82;
-}
-"""
-	var water_material := ShaderMaterial.new()
-	water_material.shader = water_shader
+	var water_material := StandardMaterial3D.new()
+	water_material.albedo_color = Color(0.10, 0.31, 0.39, 0.82)
+	water_material.metallic = 0.12
+	water_material.roughness = 0.16
+	water_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	water_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	var lake_mesh := PlaneMesh.new()
 	lake_mesh.size = Vector2(58.0, 42.0)
-	lake_mesh.subdivide_width = 36
-	lake_mesh.subdivide_depth = 28
 	var lake := MeshInstance3D.new()
 	lake.name = "EmeraldLake"
 	lake.mesh = lake_mesh
 	lake.material_override = water_material
-	lake.position = Vector3(86.0, _terrain_height(86.0, -82.0) + 3.2, -82.0)
+	lake.position = Vector3(86.0, _terrain_height(86.0, -82.0) + 0.12, -82.0)
 	add_child(lake)
 
-	# Curved river ribbon built as a continuous triangulated surface, not box segments.
-	var river_surface := SurfaceTool.new()
-	river_surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var river_steps := 72
-	for i in range(river_steps):
-		var z0 := -190.0 + float(i) * 5.25
-		var z1 := z0 + 5.25
-		var x0 := -68.0 + sin(z0 * 0.018) * 22.0
-		var x1 := -68.0 + sin(z1 * 0.018) * 22.0
-		var width0 := 2.0 + 0.55 * (0.5 + 0.5 * sin(z0 * 0.047))
-		var width1 := 2.0 + 0.55 * (0.5 + 0.5 * sin(z1 * 0.047))
-		var l0 := Vector3(x0 - width0, _terrain_height(x0 - width0, z0) + 0.16, z0)
-		var r0 := Vector3(x0 + width0, _terrain_height(x0 + width0, z0) + 0.16, z0)
-		var l1 := Vector3(x1 - width1, _terrain_height(x1 - width1, z1) + 0.16, z1)
-		var r1 := Vector3(x1 + width1, _terrain_height(x1 + width1, z1) + 0.16, z1)
-		river_surface.add_vertex(l0)
-		river_surface.add_vertex(l1)
-		river_surface.add_vertex(r0)
-		river_surface.add_vertex(r0)
-		river_surface.add_vertex(l1)
-		river_surface.add_vertex(r1)
-	river_surface.generate_normals()
-	var river_shader := Shader.new()
-	river_shader.code = """
-shader_type spatial;
-render_mode blend_mix, cull_disabled;
-void fragment() {
-	float current = sin(UV.y * 80.0 - TIME * 2.4) * 0.04 + cos(UV.x * 34.0 + TIME) * 0.025;
-	ALBEDO = vec3(0.075,0.31,0.39) + vec3(current);
-	METALLIC = 0.16;
-	ROUGHNESS = 0.16;
-	ALPHA = 0.86;
-}
-"""
-	var river_material := ShaderMaterial.new()
-	river_material.shader = river_shader
-	var river := MeshInstance3D.new()
-	river.name = "WindingRiverWater"
-	river.mesh = river_surface.commit()
-	river.material_override = river_material
-	add_child(river)
+	# A narrow river winds through the lowland; each segment follows local terrain height.
+	var river_material := StandardMaterial3D.new()
+	river_material.albedo_color = Color(0.12, 0.36, 0.43, 0.86)
+	river_material.roughness = 0.2
+	river_material.metallic = 0.08
+	river_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	for i in range(18):
+		var z := -150.0 + float(i) * 17.0
+		var x := -68.0 + sin(z * 0.018) * 22.0
+		var segment := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(5.5, 0.12, 18.0)
+		segment.mesh = mesh
+		segment.material_override = river_material
+		segment.position = Vector3(x, _terrain_height(x, z) + 0.10, z)
+		segment.rotation.y = cos(z * 0.018) * 0.22
+		add_child(segment)
 
 func _build_foliage_and_rocks() -> void:
-	# Instanced rocks and undergrowth; detailed tree silhouettes use Blender GLB assets.
+	var trunk_mesh := CylinderMesh.new()
+	trunk_mesh.top_radius = 0.24
+	trunk_mesh.bottom_radius = 0.38
+	trunk_mesh.height = 4.8
+	var trunk_material := StandardMaterial3D.new()
+	trunk_material.albedo_color = Color(0.22, 0.13, 0.075)
+	trunk_material.roughness = 1.0
+	var crown_mesh := SphereMesh.new()
+	crown_mesh.radius = 1.0
+	crown_mesh.height = 2.0
+	var crown_material := StandardMaterial3D.new()
+	crown_material.albedo_color = Color(0.10, 0.24, 0.12)
+	crown_material.roughness = 1.0
+	var pine_mesh := CylinderMesh.new()
+	pine_mesh.top_radius = 0.0
+	pine_mesh.bottom_radius = 1.35
+	pine_mesh.height = 3.6
+	var pine_material := StandardMaterial3D.new()
+	pine_material.albedo_color = Color(0.075, 0.19, 0.13)
+	pine_material.roughness = 1.0
+	var trunk_transforms: Array[Transform3D] = []
+	var crown_transforms: Array[Transform3D] = []
+	var pine_transforms: Array[Transform3D] = []
 	var rock_mesh := SphereMesh.new()
 	rock_mesh.radius = 1.0
 	rock_mesh.height = 1.5
-	rock_mesh.radial_segments = 9
-	rock_mesh.rings = 5
 	var rock_material := StandardMaterial3D.new()
-	rock_material.albedo_color = Color(0.29, 0.31, 0.29)
-	rock_material.roughness = 0.96
+	rock_material.albedo_color = Color(0.31, 0.33, 0.32)
+	rock_material.roughness = 0.98
 	var rock_transforms: Array[Transform3D] = []
-	var shrub_mesh := SphereMesh.new()
-	shrub_mesh.radius = 0.5
-	shrub_mesh.height = 1.0
-	shrub_mesh.radial_segments = 8
-	shrub_mesh.rings = 5
-	var shrub_material := StandardMaterial3D.new()
-	shrub_material.albedo_color = Color(0.12, 0.26, 0.10)
-	shrub_material.roughness = 0.98
-	var shrub_transforms: Array[Transform3D] = []
-	for i in range(360):
-		var x := rng.randf_range(-WORLD_HALF_SIZE + 8.0, WORLD_HALF_SIZE - 8.0)
-		var z := rng.randf_range(-WORLD_HALF_SIZE + 8.0, WORLD_HALF_SIZE - 8.0)
-		if Vector2(x, z - 8.0).length() < 40.0:
+	for i in range(230):
+		var x := rng.randf_range(-WORLD_HALF_SIZE + 10.0, WORLD_HALF_SIZE - 10.0)
+		var z := rng.randf_range(-WORLD_HALF_SIZE + 10.0, WORLD_HALF_SIZE - 10.0)
+		if Vector2(x, z - 8.0).length() < 48.0:
 			continue
-		if Vector2(x + 112.0, z + 92.0).length() < 52.0:
+		if Vector2(x - 86.0, z + 82.0).length() < 34.0:
 			continue
-		if Vector2(x - 86.0, z + 82.0).length() < 30.0:
+		if absf(x + 68.0 - sin(z * 0.018) * 22.0) < 8.0:
 			continue
 		var ground := _terrain_height(x, z)
+		if ground > 34.0:
+			continue
 		var yaw_angle := rng.randf_range(0.0, TAU)
+		var trunk_scale := rng.randf_range(0.72, 1.3)
+		trunk_transforms.append(Transform3D(Basis(Vector3.UP, yaw_angle).scaled(Vector3(trunk_scale, trunk_scale, trunk_scale)), Vector3(x, ground + 2.4 * trunk_scale, z)))
+		var crown_scale := rng.randf_range(2.0, 3.4)
+		var crown_pos := Vector3(x, ground + 5.0 * trunk_scale, z)
 		if i % 3 == 0:
-			var rock_size := rng.randf_range(0.55, 2.1)
-			var rock_basis := Basis(Vector3.UP, yaw_angle).scaled(Vector3(rock_size, rock_size * rng.randf_range(0.55, 0.9), rock_size * rng.randf_range(0.7, 1.2)))
-			rock_transforms.append(Transform3D(rock_basis, Vector3(x, ground + rock_size * 0.32, z)))
+			pine_transforms.append(Transform3D(Basis(Vector3.UP, yaw_angle).scaled(Vector3(crown_scale * 0.72, crown_scale, crown_scale * 0.72)), crown_pos))
 		else:
-			var shrub_size := rng.randf_range(0.65, 1.35)
-			var shrub_basis := Basis(Vector3.UP, yaw_angle).scaled(Vector3(shrub_size, shrub_size * 0.78, shrub_size))
-			shrub_transforms.append(Transform3D(shrub_basis, Vector3(x, ground + shrub_size * 0.42, z)))
-	_add_multimesh(rock_mesh, rock_material, rock_transforms, "WeatheredRockScatter")
-	_add_multimesh(shrub_mesh, shrub_material, shrub_transforms, "DenseUndergrowth")
+			crown_transforms.append(Transform3D(Basis(Vector3.UP, yaw_angle).scaled(Vector3(crown_scale, crown_scale * 0.82, crown_scale)), crown_pos))
+		if i % 4 == 0:
+			var rock_size := rng.randf_range(0.7, 2.0)
+			rock_transforms.append(Transform3D(Basis(Vector3.UP, yaw_angle).scaled(Vector3(rock_size, rock_size * 0.7, rock_size * 0.9)), Vector3(x + rng.randf_range(-5.0,5.0), ground + rock_size * 0.38, z + rng.randf_range(-5.0,5.0))))
+	_add_multimesh(trunk_mesh, trunk_material, trunk_transforms, "ForestTreeTrunks")
+	_add_multimesh(crown_mesh, crown_material, crown_transforms, "BroadleafCanopies")
+	_add_multimesh(pine_mesh, pine_material, pine_transforms, "PineCanopies")
+	_add_multimesh(rock_mesh, rock_material, rock_transforms, "ScatteredBoulders")
 
-	# Small meadow flowers and forest-floor mushrooms add scale and color variation.
-	var flower_mesh := SphereMesh.new()
-	flower_mesh.radius = 0.5
-	flower_mesh.height = 0.5
-	flower_mesh.radial_segments = 7
-	flower_mesh.rings = 4
-	var flower_gold := StandardMaterial3D.new()
-	flower_gold.albedo_color = Color(0.92, 0.69, 0.22)
-	var flower_blue := StandardMaterial3D.new()
-	flower_blue.albedo_color = Color(0.40, 0.56, 0.82)
-	var flower_white := StandardMaterial3D.new()
-	flower_white.albedo_color = Color(0.84, 0.83, 0.68)
-	var flower_sets: Array[Array] = [[], [], []]
-	for i in range(210):
-		var fx := rng.randf_range(-WORLD_HALF_SIZE + 8.0, WORLD_HALF_SIZE - 8.0)
-		var fz := rng.randf_range(-WORLD_HALF_SIZE + 8.0, WORLD_HALF_SIZE - 8.0)
-		if Vector2(fx, fz - 8.0).length() < 34.0:
-			continue
-		if _terrain_height(fx, fz) > 30.0:
-			continue
-		var flower_scale := rng.randf_range(0.12, 0.24)
-		var flower_basis := Basis().scaled(Vector3(flower_scale, flower_scale * 0.7, flower_scale))
-		flower_sets[i % 3].append(Transform3D(flower_basis, Vector3(fx, _terrain_height(fx, fz) + rng.randf_range(0.42, 0.72), fz)))
-	_add_multimesh(flower_mesh, flower_gold, flower_sets[0], "GoldenMeadowFlowers")
-	_add_multimesh(flower_mesh, flower_blue, flower_sets[1], "BlueMeadowFlowers")
-	_add_multimesh(flower_mesh, flower_white, flower_sets[2], "WhiteMeadowFlowers")
 
-	# Wind-bent grass clumps, batched into a single MultiMesh for Android.
-	var grass_mesh := CapsuleMesh.new()
-	grass_mesh.radius = 0.045
-	grass_mesh.height = 0.78
-	grass_mesh.radial_segments = 5
-	grass_mesh.rings = 3
-	var grass_shader := Shader.new()
-	grass_shader.code = """
-shader_type spatial;
-render_mode cull_disabled;
-void vertex() {
-	float sway = sin(TIME * 1.65 + MODEL_MATRIX[3].x * 0.17 + MODEL_MATRIX[3].z * 0.13);
-	VERTEX.x += sway * 0.10 * max(VERTEX.y, 0.0);
-}
-void fragment() {
-	float variation = fract(sin(dot(MODEL_MATRIX[3].xz, vec2(12.9898,78.233))) * 43758.5453);
-	ALBEDO = mix(vec3(0.10,0.22,0.075), vec3(0.31,0.43,0.15), variation);
-	ROUGHNESS = 0.96;
-}
-"""
-	var grass_material := ShaderMaterial.new()
-	grass_material.shader = grass_shader
-	var grass_transforms: Array[Transform3D] = []
-	for i in range(1700):
-		var x := rng.randf_range(-WORLD_HALF_SIZE + 5.0, WORLD_HALF_SIZE - 5.0)
-		var z := rng.randf_range(-WORLD_HALF_SIZE + 5.0, WORLD_HALF_SIZE - 5.0)
-		if Vector2(x, z - 8.0).length() < 32.0:
-			continue
-		if _terrain_height(x, z) > 38.0:
-			continue
-		var blade_scale := rng.randf_range(0.55, 1.35)
-		var blade_yaw := rng.randf_range(0.0, TAU)
-		var blade_basis := Basis(Vector3.UP, blade_yaw).scaled(Vector3.ONE * blade_scale)
-		grass_transforms.append(Transform3D(blade_basis, Vector3(x, _terrain_height(x, z) + 0.35 * blade_scale, z)))
-	_add_multimesh(grass_mesh, grass_material, grass_transforms, "WindAnimatedGrass")
-	_build_detailed_tree_forest()
-
-func _collect_tree_mesh_data(node: Node, parent_transform: Transform3D, output: Array[Dictionary]) -> void:
-	var current_transform := parent_transform
-	if node is Node3D:
-		current_transform = parent_transform * (node as Node3D).transform
-	if node is MeshInstance3D:
-		var mesh_node := node as MeshInstance3D
-		if mesh_node.mesh != null:
-			output.append({"mesh": mesh_node.mesh, "material": mesh_node.material_override, "transform": current_transform})
-	for child in node.get_children():
-		_collect_tree_mesh_data(child, current_transform, output)
-
-func _build_detailed_tree_forest() -> void:
-	var species := [
-		{"path": "res://assets/generated/Tree_Old_Oak.glb", "name": "OakCanopy", "count": 24, "height": 8.0},
-		{"path": "res://assets/generated/Tree_Young_Birch.glb", "name": "BirchGrove", "count": 22, "height": 7.0},
-		{"path": "res://assets/generated/Tree_Wide_Ancient.glb", "name": "AncientOaks", "count": 13, "height": 9.0},
-		{"path": "res://assets/generated/Tree_Pine.glb", "name": "AlpinePines", "count": 32, "height": 8.5}
+func _build_generated_tree_landmarks() -> void:
+	# Blender-authored GLB trees are used as hero props when the asset workflow has produced them.
+	var tree_paths := [
+		"res://assets/generated/Tree_Old_Oak.glb",
+		"res://assets/generated/Tree_Young_Birch.glb",
+		"res://assets/generated/Tree_Wide_Ancient.glb",
+		"res://assets/generated/Tree_Pine.glb"
 	]
-	for entry in species:
-		_add_tree_species_multimesh(String(entry.path), String(entry.name), int(entry.count), float(entry.height))
-
-func _add_tree_species_multimesh(path: String, species_name: String, count: int, target_height: float) -> void:
-	if not ResourceLoader.exists(path):
-		push_warning("Tree asset missing: " + path)
-		return
-	var packed := load(path) as PackedScene
-	if packed == null:
-		return
-	var source := packed.instantiate() as Node3D
-	if source == null:
-		return
-	_fit_model_to_height(source, target_height)
-	var mesh_data: Array[Dictionary] = []
-	_collect_tree_mesh_data(source, Transform3D.IDENTITY, mesh_data)
-	if mesh_data.is_empty():
-		source.free()
-		return
-	var placements: Array[Transform3D] = []
-	for i in range(count):
-		var accepted := false
-		var x := 0.0
-		var z := 0.0
-		var ground := 0.0
-		for attempt in range(20):
-			x = rng.randf_range(-WORLD_HALF_SIZE + 12.0, WORLD_HALF_SIZE - 12.0)
-			z = rng.randf_range(-WORLD_HALF_SIZE + 12.0, WORLD_HALF_SIZE - 12.0)
-			ground = _terrain_height(x, z)
-			if Vector2(x, z - 8.0).length() < 43.0:
-				continue
-			if Vector2(x + 112.0, z + 92.0).length() < 58.0:
-				continue
-			if Vector2(x - 86.0, z + 82.0).length() < 35.0:
-				continue
-			if ground > 48.0:
-				continue
-			accepted = true
-			break
-		if accepted:
-			var yaw_angle := rng.randf_range(0.0, TAU)
-			var instance_scale := rng.randf_range(0.78, 1.22)
-			var basis := Basis(Vector3.UP, yaw_angle).scaled(Vector3.ONE * instance_scale)
-			placements.append(Transform3D(basis, Vector3(x, ground, z)))
-	for mesh_index in range(mesh_data.size()):
-		var record: Dictionary = mesh_data[mesh_index]
-		var tree_mesh := record["mesh"] as Mesh
-		if tree_mesh == null:
+	var placements := [
+		Vector3(-34.0, 0.0, -42.0), Vector3(34.0, 0.0, -54.0),
+		Vector3(-48.0, 0.0, 34.0), Vector3(48.0, 0.0, 38.0)
+	]
+	for i in range(tree_paths.size()):
+		var path: String = tree_paths[i]
+		if not ResourceLoader.exists(path):
 			continue
-		var local_transform: Transform3D = record["transform"]
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = tree_mesh
-		mm.instance_count = placements.size()
-		for j in range(placements.size()):
-			mm.set_instance_transform(j, placements[j] * local_transform)
-		var instance := MultiMeshInstance3D.new()
-		instance.name = species_name + "_Part_%02d" % mesh_index
-		instance.multimesh = mm
-		instance.material_override = record["material"] as Material
-		add_child(instance)
-	source.free()
+		var packed := load(path) as PackedScene
+		if packed == null:
+			continue
+		var tree := packed.instantiate() as Node3D
+		if tree == null:
+			continue
+		tree.name = "BlenderTree_%02d" % i
+		_fit_model_to_height(tree, 7.0 if i == 2 else 5.5)
+		var place: Vector3 = placements[i]
+		tree.position = Vector3(place.x, _terrain_height(place.x, place.z), place.z)
+		tree.rotation.y = float(i) * 1.37
+		add_child(tree)
 
 func _build_clouds() -> void:
 	# Soft, layered cloud banks at several heights and scales.
@@ -704,12 +371,6 @@ func _add_multimesh(mesh: Mesh, material: Material, transforms: Array[Transform3
 	instance.name = node_name
 	instance.multimesh = multi
 	instance.material_override = material
-	if node_name == "WindAnimatedGrass":
-		instance.visibility_range_end = 82.0
-	elif node_name == "DistantCloudBanks":
-		instance.visibility_range_end = 420.0
-	else:
-		instance.visibility_range_end = 230.0
 	add_child(instance)
 
 func _build_player() -> void:
