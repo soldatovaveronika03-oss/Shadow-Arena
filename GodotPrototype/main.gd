@@ -57,8 +57,8 @@ func _build_world() -> void:
 	env.ambient_light_color = Color(0.72, 0.80, 0.91)
 	env.ambient_light_energy = 0.9
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.volumetric_fog_enabled = true
-	env.volumetric_fog_density = 0.006
+	env.volumetric_fog_enabled = false
+	# Volumetric fog is unsupported by the Android GL Compatibility renderer.
 	world_env.environment = env
 	add_child(world_env)
 
@@ -165,7 +165,7 @@ func _build_clouds() -> void:
 	cloud_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	cloud_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	var clouds: Array[Transform3D] = []
-	for i in range(34):
+	for i in range(20):
 		var x := rng.randf_range(-WORLD_HALF_SIZE * 1.3, WORLD_HALF_SIZE * 1.3)
 		var z := rng.randf_range(-WORLD_HALF_SIZE * 1.3, WORLD_HALF_SIZE * 1.3)
 		var y := rng.randf_range(54.0, 82.0)
@@ -196,7 +196,7 @@ func _build_nature() -> void:
 
 	var trunk_transforms: Array[Transform3D] = []
 	var canopy_transforms: Array[Transform3D] = []
-	for i in range(360):
+	for i in range(180):
 		var x := rng.randf_range(-WORLD_HALF_SIZE + 12.0, WORLD_HALF_SIZE - 12.0)
 		var z := rng.randf_range(-WORLD_HALF_SIZE + 12.0, WORLD_HALF_SIZE - 12.0)
 		if Vector2(x, z - 8.0).length() < 20.0:
@@ -221,7 +221,7 @@ func _build_nature() -> void:
 	bush_mat.albedo_color = Color(0.15, 0.34, 0.13)
 	bush_mat.roughness = 1.0
 	var bushes: Array[Transform3D] = []
-	for i in range(620):
+	for i in range(280):
 		var x := rng.randf_range(-WORLD_HALF_SIZE, WORLD_HALF_SIZE)
 		var z := rng.randf_range(-WORLD_HALF_SIZE, WORLD_HALF_SIZE)
 		if Vector2(x, z - 8.0).length() < 13.0:
@@ -239,7 +239,7 @@ func _build_nature() -> void:
 	rock_mat.albedo_color = Color(0.34, 0.36, 0.33)
 	rock_mat.roughness = 1.0
 	var rocks: Array[Transform3D] = []
-	for i in range(190):
+	for i in range(100):
 		var x := rng.randf_range(-WORLD_HALF_SIZE, WORLD_HALF_SIZE)
 		var z := rng.randf_range(-WORLD_HALF_SIZE, WORLD_HALF_SIZE)
 		if Vector2(x, z - 8.0).length() < 12.0:
@@ -256,7 +256,7 @@ func _build_nature() -> void:
 	blade_mat.albedo_color = Color(0.34, 0.53, 0.22)
 	blade_mat.roughness = 1.0
 	var grass_transforms: Array[Transform3D] = []
-	for i in range(5200):
+	for i in range(1400):
 		var x := rng.randf_range(-WORLD_HALF_SIZE, WORLD_HALF_SIZE)
 		var z := rng.randf_range(-WORLD_HALF_SIZE, WORLD_HALF_SIZE)
 		if Vector2(x, z - 8.0).length() < 11.0:
@@ -326,9 +326,10 @@ func _build_player() -> void:
 	player.add_child(camera_pivot)
 	camera = Camera3D.new()
 	camera.position = Vector3(0, 2.1, 6.8)
-	camera.current = true
 	camera.fov = 72.0
 	camera_pivot.add_child(camera)
+	camera.make_current()
+	camera.look_at(player.global_position + Vector3(0.0, 1.0, 0.0))
 
 func _fit_model_to_height(model: Node3D, target_height: float) -> void:
 	var bounds: Array = [Vector3.ZERO, Vector3.ZERO, false]
