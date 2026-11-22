@@ -62,7 +62,12 @@ func _terrain_height(x: float, z: float) -> float:
 	var clearing := clampf(1.0 - Vector2(x, z - 8.0).length() / 46.0, 0.0, 1.0)
 	var valley_floor := rolling * (1.0 - mountain_mask * 0.45)
 	var mountain_height := (ridges + peaks + rolling * 0.6) * mountain_mask
-	return (valley_floor + mountain_height) * (1.0 - clearing * 0.96)
+	var natural_height := (valley_floor + mountain_height) * (1.0 - clearing * 0.96)
+	# Flatten a broad, gently blended terrace beneath the castle so its foundation
+	# and courtyard do not intersect the steep procedural hillside.
+	var castle_distance := Vector2(x + 112.0, z + 92.0).length()
+	var terrace_weight := 1.0 - smoothstep(29.0, 45.0, castle_distance)
+	return lerpf(natural_height, 5.35233, terrace_weight)
 
 func _build_world() -> void:
 	var world_env := WorldEnvironment.new()
