@@ -22,7 +22,7 @@ jobs:
       - name: Install Blender
         run: |
           sudo apt-get update
-          sudo apt-get install -y blender python3-numpy
+          sudo apt-get install -y blender python3-numpy libegl1 libgl1 libxrender1 libxi6
 
       - name: Generate Blender tree models and previews
         run: |
