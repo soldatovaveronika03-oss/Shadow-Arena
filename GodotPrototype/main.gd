@@ -150,9 +150,9 @@ func _build_terrain() -> void:
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for z in range(terrain_cells):
-		for x in range(TERRAIN_CELLS):
+		for x in range(terrain_cells):
 			var x0 := -WORLD_HALF_SIZE + float(x) * terrain_step
-			var z0 := -WORLD_HALF_SIZE + float(z) * TERRAIN_STEP
+			var z0 := -WORLD_HALF_SIZE + float(z) * terrain_step
 			var x1 := x0 + terrain_step
 			var z1 := z0 + terrain_step
 			var a := Vector3(x0, _terrain_height(x0, z0), z0)
