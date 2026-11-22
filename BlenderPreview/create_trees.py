@@ -100,7 +100,9 @@ def setup_preview():
         l=bpy.context.object; l.data.energy=power; l.data.shape="DISK"; l.data.size=size
         l.rotation_euler=(Vector((0,0,2))-l.location).to_track_quat("-Z","Y").to_euler()
     sc=bpy.context.scene
-    sc.render.engine="BLENDER_EEVEE_NEXT"
+    sc.render.engine="BLENDER_EEVEE"
+    sc.eevee.use_gtao=True
+    sc.eevee.gtao_distance=3
     sc.render.resolution_x=900; sc.render.resolution_y=900; sc.render.resolution_percentage=100
     sc.render.image_settings.file_format="PNG"
     sc.world.color=(0.12,0.12,0.12)
