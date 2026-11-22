@@ -12,6 +12,7 @@
   ],
   "Plugins": [
     { "Name": "EnhancedInput", "Enabled": true },
-    { "Name": "AndroidPermission", "Enabled": true }
+    { "Name": "AndroidPermission", "Enabled": true },
+    { "Name": "ProceduralMeshComponent", "Enabled": true }
   ]
 }
