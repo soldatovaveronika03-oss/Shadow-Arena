@@ -3,6 +3,7 @@
 from pathlib import Path
 import shutil
 import zipfile
+import base64
 
 ROOT = Path.cwd()
 ARCHIVE = ROOT / "dragon_realm_godot_v3.zip"
@@ -20,6 +21,14 @@ with zipfile.ZipFile(ARCHIVE) as zf:
 PROJECT = WORK / "dragon_realm_v3"
 if not (PROJECT / "project.godot").exists():
     raise SystemExit("The archive does not contain dragon_realm_v3/project.godot")
+
+icon_png = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/pWQAAAAASUVORK5CYII=")
+(PROJECT / "icon.png").write_bytes(icon_png)
+project_settings = PROJECT / "project.godot"
+project_text = project_settings.read_text(encoding="utf-8")
+if "config/icon=" not in project_text:
+    project_text = project_text.replace("[application]\\n", "[application]\\nconfig/icon=\\"res://icon.png\\"\\n", 1)
+    project_settings.write_text(project_text, encoding="utf-8")
 
 ASSETS = PROJECT / "assets"
 ASSETS.mkdir(exist_ok=True)
@@ -236,6 +245,8 @@ package/signed=true
 version/code=1
 version/name="1.0"
 screen/immersive_mode=true
+launcher_icons/main_192x192="res://icon.png"
+launcher_icons/adaptive_foreground_432x432="res://icon.png"
 '''
 (PROJECT / "export_presets.cfg").write_text(preset, encoding="utf-8")
 print("Prepared project:", PROJECT)
