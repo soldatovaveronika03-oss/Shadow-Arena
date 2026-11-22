@@ -54,9 +54,9 @@ func _terrain_height(x: float, z: float) -> float:
 	var rolling := sin(x * 0.018) * 2.8 + cos(z * 0.021) * 2.2
 	rolling += sin((x + z) * 0.011) * 1.8 + cos((x - z) * 0.014) * 1.1
 	var distance := Vector2(x * 0.92, z * 1.04).length()
-	var mountain_mask := smoothstep(112.0, 198.0, distance)
-	var ridge_a := abs(sin(x * 0.022 + cos(z * 0.013) * 1.7))
-	var ridge_b := abs(cos(z * 0.019 - sin(x * 0.017) * 1.3))
+	var mountain_mask: float = smoothstep(112.0, 198.0, distance)
+	var ridge_a: float = abs(sin(x * 0.022 + cos(z * 0.013) * 1.7))
+	var ridge_b: float = abs(cos(z * 0.019 - sin(x * 0.017) * 1.3))
 	var ridges := pow(maxf(ridge_a * ridge_b, 0.015), 0.62) * 34.0
 	var peaks := maxf(0.0, sin(x * 0.031 + z * 0.018) * cos(z * 0.027 - x * 0.012)) * 13.0
 	var clearing := clampf(1.0 - Vector2(x, z - 8.0).length() / 46.0, 0.0, 1.0)
