@@ -94,6 +94,12 @@ func _build_world() -> void:
 	_build_generated_tree_landmarks()
 	_build_resource_system()
 	_build_clouds()
+	var landmarks_script := load("res://world_features.gd") as Script
+	if landmarks_script != null:
+		var landmarks := Node3D.new()
+		landmarks.set_script(landmarks_script)
+		landmarks.name = "WorldLandmarks"
+		add_child(landmarks)
 
 func _build_terrain() -> void:
 	var surface := SurfaceTool.new()
