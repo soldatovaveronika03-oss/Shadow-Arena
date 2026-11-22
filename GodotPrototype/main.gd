@@ -348,13 +348,13 @@ func _build_foliage_and_rocks() -> void:
 		var ground := _terrain_height(x, z)
 		var yaw_angle := rng.randf_range(0.0, TAU)
 		if i % 3 == 0:
-			var size := rng.randf_range(0.55, 2.1)
-			var rock_basis := Basis(Vector3.UP, yaw_angle).scaled(Vector3(size, size * rng.randf_range(0.55, 0.9), size * rng.randf_range(0.7, 1.2)))
-			rock_transforms.append(Transform3D(rock_basis, Vector3(x, ground + size * 0.32, z)))
+			var rock_size := rng.randf_range(0.55, 2.1)
+			var rock_basis := Basis(Vector3.UP, yaw_angle).scaled(Vector3(rock_size, rock_size * rng.randf_range(0.55, 0.9), rock_size * rng.randf_range(0.7, 1.2)))
+			rock_transforms.append(Transform3D(rock_basis, Vector3(x, ground + rock_size * 0.32, z)))
 		else:
-			var size := rng.randf_range(0.65, 1.35)
-			var shrub_basis := Basis(Vector3.UP, yaw_angle).scaled(Vector3(size, size * 0.78, size))
-			shrub_transforms.append(Transform3D(shrub_basis, Vector3(x, ground + size * 0.42, z)))
+			var shrub_size := rng.randf_range(0.65, 1.35)
+			var shrub_basis := Basis(Vector3.UP, yaw_angle).scaled(Vector3(shrub_size, shrub_size * 0.78, shrub_size))
+			shrub_transforms.append(Transform3D(shrub_basis, Vector3(x, ground + shrub_size * 0.42, z)))
 	_add_multimesh(rock_mesh, rock_material, rock_transforms, "WeatheredRockScatter")
 	_add_multimesh(shrub_mesh, shrub_material, shrub_transforms, "DenseUndergrowth")
 
