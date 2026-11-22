@@ -1,0 +1,45 @@
+name: Build Blender Dragon Asset
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "Blender/**"
+      - ".github/workflows/build-blender-dragon.yml"
+permissions:
+  contents: write
+jobs:
+  build-dragon:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Blender
+        run: |
+          wget -q https://download.blender.org/release/Blender4.2/blender-4.2.3-linux-x64.tar.xz -O /tmp/blender.tar.xz
+          tar -xf /tmp/blender.tar.xz -C /tmp
+          echo "/tmp/blender-4.2.3-linux-x64" >> "$GITHUB_PATH"
+      - name: Generate dragon GLB
+        run: |
+          mkdir -p GodotPrototype/assets
+          blender -b -t 2 --python Blender/create_atlas_dragon.py
+          test -s /tmp/atlas_dragon.glb
+          cp /tmp/atlas_dragon.glb GodotPrototype/assets/atlas_dragon.glb
+      - name: Commit generated GLB
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add GodotPrototype/assets/atlas_dragon.glb
+          if git diff --cached --quiet; then
+            echo "No generated asset changes."
+          else
+            git commit -m "Generate rigged Atlas dragon asset with Blender"
+            git push
+          fi
+      - name: Upload dragon asset
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-dragon-glb
+          path: GodotPrototype/assets/atlas_dragon.glb
+          if-no-files-found: error
