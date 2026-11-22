@@ -572,7 +572,7 @@ func _animate_parts(parts: Array[Dictionary], phase: float, move_amount: float, 
 		if not is_instance_valid(node):
 			continue
 		var base: Vector3 = part.get("base", Vector3.ZERO)
-		var node_name := node.name.to_lower()
+		var node_name: String = str(node.name).to_lower()
 		var animated := base
 		if node_name.contains("wing"):
 			animated.z += sin(phase * 2.8) * flap_amount * 0.9
