@@ -33,6 +33,14 @@ var wing_parts: Array[Dictionary] = []
 var hero_parts: Array[Dictionary] = []
 var hero_animation_players: Array[AnimationPlayer] = []
 var hero_current_animation := ""
+var wood_count := 0
+var stone_count := 0
+var fiber_count := 0
+var has_shelter_kit := false
+var shelter_built := false
+var resource_nodes: Array[Dictionary] = []
+var inventory_label: Label
+var resource_hint_label: Label
 
 func _ready() -> void:
 	rng.seed = 482019
@@ -70,6 +78,7 @@ func _build_world() -> void:
 
 	_build_terrain()
 	_build_nature()
+	_build_resource_system()
 	_build_clouds()
 
 func _build_terrain() -> void:
@@ -505,6 +514,39 @@ func _build_ui() -> void:
 	hint.add_theme_font_size_override("font_size", 13)
 	layer.add_child(hint)
 
+	inventory_label = Label.new()
+	inventory_label.name = "ResourceInventory"
+	inventory_label.position = Vector2(30, 92)
+	inventory_label.add_theme_font_size_override("font_size", 17)
+	layer.add_child(inventory_label)
+
+	resource_hint_label = Label.new()
+	resource_hint_label.name = "ResourceHint"
+	resource_hint_label.position = Vector2(30, 122)
+	resource_hint_label.add_theme_font_size_override("font_size", 15)
+	layer.add_child(resource_hint_label)
+
+	var harvest_button := Button.new()
+	harvest_button.text = "СОБРАТЬ"
+	harvest_button.position = Vector2(760, 540)
+	harvest_button.size = Vector2(145, 62)
+	harvest_button.pressed.connect(_harvest_nearest_resource)
+	layer.add_child(harvest_button)
+
+	var craft_button := Button.new()
+	craft_button.text = "КРАФТ"
+	craft_button.position = Vector2(760, 610)
+	craft_button.size = Vector2(145, 62)
+	craft_button.pressed.connect(_craft_shelter_kit)
+	layer.add_child(craft_button)
+
+	var build_button := Button.new()
+	build_button.text = "ПОСТРОИТЬ"
+	build_button.position = Vector2(920, 540)
+	build_button.size = Vector2(145, 62)
+	build_button.pressed.connect(_build_shelter)
+	layer.add_child(build_button)
+
 func _update_joystick(screen_position: Vector2) -> void:
 	var offset := screen_position - joystick_center
 	if offset.length() > joystick_radius:
@@ -616,6 +658,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		camera_pivot.rotation = Vector3(pitch, yaw, 0)
 
 func _process(delta: float) -> void:
+	_update_resource_ui()
 	var moving := Vector2(player.velocity.x, player.velocity.z).length() > 0.35 if player != null else false
 	if moving:
 		hero_run_phase += delta * 9.0
@@ -721,3 +764,187 @@ func _physics_process(delta: float) -> void:
 			player.velocity.y = 0.0
 	if direction.length() > 0.1:
 		player.rotation.y = lerp_angle(player.rotation.y, atan2(-direction.x, -direction.z), delta * 10.0)
+
+
+func _build_resource_system() -> void:
+	# Small, individually harvestable deposits near the starting clearing.
+	var tree_positions := [Vector2(6.0, 7.0), Vector2(-7.0, 10.0), Vector2(10.0, -5.0)]
+	for p in tree_positions:
+		var root := Node3D.new()
+		root.name = "HarvestableTree"
+		var trunk := MeshInstance3D.new()
+		var trunk_mesh := CylinderMesh.new()
+		trunk_mesh.top_radius = 0.22
+		trunk_mesh.bottom_radius = 0.34
+		trunk_mesh.height = 2.8
+		trunk.mesh = trunk_mesh
+		var bark := StandardMaterial3D.new()
+		bark.albedo_color = Color(0.30, 0.17, 0.09)
+		trunk.material_override = bark
+		trunk.position.y = 1.4
+		root.add_child(trunk)
+		var crown := MeshInstance3D.new()
+		var crown_mesh := SphereMesh.new()
+		crown_mesh.radius = 1.15
+		crown_mesh.height = 2.0
+		crown.mesh = crown_mesh
+		var leaves := StandardMaterial3D.new()
+		leaves.albedo_color = Color(0.12, 0.36, 0.14)
+		crown.material_override = leaves
+		crown.position.y = 3.0
+		root.add_child(crown)
+		root.position = Vector3(p.x, _terrain_height(p.x, p.y), p.y)
+		add_child(root)
+		resource_nodes.append({"node": root, "kind": "wood", "amount": 3})
+
+	var rock_positions := [Vector2(8.0, 13.0), Vector2(-10.0, 3.0), Vector2(13.0, 5.0)]
+	for p in rock_positions:
+		var root := Node3D.new()
+		root.name = "HarvestableStone"
+		var rock := MeshInstance3D.new()
+		var rock_mesh := SphereMesh.new()
+		rock_mesh.radius = 0.85
+		rock_mesh.height = 1.15
+		rock.mesh = rock_mesh
+		var stone_mat := StandardMaterial3D.new()
+		stone_mat.albedo_color = Color(0.38, 0.41, 0.40)
+		stone_mat.roughness = 1.0
+		rock.material_override = stone_mat
+		rock.scale = Vector3(1.25, 0.75, 1.0)
+		rock.position.y = 0.45
+		root.add_child(rock)
+		root.position = Vector3(p.x, _terrain_height(p.x, p.y), p.y)
+		add_child(root)
+		resource_nodes.append({"node": root, "kind": "stone", "amount": 2})
+
+	var bush_positions := [Vector2(-5.0, -2.0), Vector2(5.0, -10.0)]
+	for p in bush_positions:
+		var root := Node3D.new()
+		root.name = "HarvestableFiberBush"
+		var bush := MeshInstance3D.new()
+		var bush_mesh := SphereMesh.new()
+		bush_mesh.radius = 0.72
+		bush_mesh.height = 1.0
+		bush.mesh = bush_mesh
+		var bush_mat := StandardMaterial3D.new()
+		bush_mat.albedo_color = Color(0.18, 0.42, 0.16)
+		bush.material_override = bush_mat
+		bush.position.y = 0.45
+		root.add_child(bush)
+		root.position = Vector3(p.x, _terrain_height(p.x, p.y), p.y)
+		add_child(root)
+		resource_nodes.append({"node": root, "kind": "fiber", "amount": 2})
+
+func _nearest_resource() -> Dictionary:
+	var best: Dictionary = {}
+	var best_distance := 5.5
+	if player == null:
+		return best
+	for i in range(resource_nodes.size()):
+		var entry: Dictionary = resource_nodes[i]
+		var node = entry.get("node")
+		if not is_instance_valid(node):
+			continue
+		var distance := Vector2(player.global_position.x - node.global_position.x, player.global_position.z - node.global_position.z).length()
+		if distance < best_distance:
+			best_distance = distance
+			best = {"index": i, "entry": entry, "distance": distance}
+	return best
+
+func _update_resource_ui() -> void:
+	if inventory_label == null or resource_hint_label == null:
+		return
+	inventory_label.text = "Дерево: %d   Камень: %d   Волокно: %d" % [wood_count, stone_count, fiber_count]
+	var nearest := _nearest_resource()
+	if nearest.is_empty():
+		resource_hint_label.text = "Подойди к дереву, камню или кусту и нажми «СОБРАТЬ»."
+	else:
+		var entry: Dictionary = nearest["entry"]
+		var kind: String = str(entry.get("kind", ""))
+		var label := "дерево" if kind == "wood" else ("камень" if kind == "stone" else "куст")
+		resource_hint_label.text = "Рядом: %s • можно добыть" % label
+	if has_shelter_kit:
+		resource_hint_label.text = "Комплект дома готов — нажми «ПОСТРОИТЬ»."
+	elif shelter_built:
+		resource_hint_label.text = "Убежище построено. Можно продолжать исследование."
+
+func _harvest_nearest_resource() -> void:
+	var nearest := _nearest_resource()
+	if nearest.is_empty():
+		info_label.text = "Подойди ближе к ресурсу."
+		return
+	var index: int = nearest["index"]
+	var entry: Dictionary = nearest["entry"]
+	var kind: String = str(entry.get("kind", ""))
+	var amount: int = int(entry.get("amount", 1))
+	if kind == "wood":
+		wood_count += amount
+		info_label.text = "Получено древесины: %d" % amount
+	elif kind == "stone":
+		stone_count += amount
+		info_label.text = "Получено камня: %d" % amount
+	else:
+		fiber_count += amount
+		info_label.text = "Получено волокна: %d" % amount
+	var node = entry.get("node")
+	if is_instance_valid(node):
+		node.queue_free()
+	resource_nodes.remove_at(index)
+
+func _craft_shelter_kit() -> void:
+	if has_shelter_kit:
+		info_label.text = "Комплект уже изготовлен — построй убежище."
+		return
+	if shelter_built:
+		info_label.text = "У тебя уже есть убежище."
+		return
+	if wood_count < 6 or stone_count < 3 or fiber_count < 2:
+		info_label.text = "Для комплекта нужно: 6 дерева, 3 камня, 2 волокна."
+		return
+	wood_count -= 6
+	stone_count -= 3
+	fiber_count -= 2
+	has_shelter_kit = true
+	info_label.text = "Изготовлен комплект для строительства дома!"
+
+func _build_shelter() -> void:
+	if not has_shelter_kit:
+		info_label.text = "Сначала изготовь комплект в меню «КРАФТ»."
+		return
+	if shelter_built:
+		info_label.text = "Убежище уже построено."
+		return
+	var forward := -player.global_transform.basis.z
+	var origin := player.global_position + forward * 6.0
+	var ground := _terrain_height(origin.x, origin.z)
+	var house := Node3D.new()
+	house.name = "KaironWoodlandShelter"
+	house.position = Vector3(origin.x, ground, origin.z)
+	add_child(house)
+	var wood_mat := StandardMaterial3D.new()
+	wood_mat.albedo_color = Color(0.34, 0.20, 0.11)
+	wood_mat.roughness = 0.95
+	var stone_mat := StandardMaterial3D.new()
+	stone_mat.albedo_color = Color(0.32, 0.34, 0.32)
+	stone_mat.roughness = 1.0
+	_add_house_box(house, Vector3(0, 0.15, 0), Vector3(4.4, 0.3, 4.4), stone_mat, "StoneFoundation")
+	_add_house_box(house, Vector3(0, 1.55, -2.0), Vector3(4.2, 2.8, 0.22), wood_mat, "BackWall")
+	_add_house_box(house, Vector3(-2.0, 1.55, 0), Vector3(0.22, 2.8, 4.2), wood_mat, "LeftWall")
+	_add_house_box(house, Vector3(2.0, 1.55, 0), Vector3(0.22, 2.8, 4.2), wood_mat, "RightWall")
+	_add_house_box(house, Vector3(-1.15, 1.55, 2.0), Vector3(1.9, 2.8, 0.22), wood_mat, "FrontLeftWall")
+	_add_house_box(house, Vector3(1.15, 1.55, 2.0), Vector3(1.9, 2.8, 0.22), wood_mat, "FrontRightWall")
+	_add_house_box(house, Vector3(0, 2.95, 0), Vector3(4.8, 0.22, 4.8), wood_mat, "FlatRoof")
+	shelter_built = true
+	has_shelter_kit = false
+	info_label.text = "Твоё первое убежище построено!"
+	resource_hint_label.text = "Убежище построено."
+
+func _add_house_box(parent: Node3D, local_position: Vector3, box_size: Vector3, material: Material, node_name: String) -> void:
+	var mesh_instance := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = box_size
+	mesh_instance.mesh = box
+	mesh_instance.material_override = material
+	mesh_instance.position = local_position
+	mesh_instance.name = node_name
+	parent.add_child(mesh_instance)
