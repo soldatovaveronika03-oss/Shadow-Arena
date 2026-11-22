@@ -7,8 +7,11 @@ const MODEL_PATHS = [
 ]
 const HERO_MODEL_FORWARD_OFFSET := PI
 const WORLD_HALF_SIZE := 220.0
-const TERRAIN_CELLS := 112
-const TERRAIN_STEP := (WORLD_HALF_SIZE * 2.0) / float(TERRAIN_CELLS)
+const WORLD_QUALITY_PROFILE := "MEDIUM"
+var terrain_cells := 112
+var terrain_step := (WORLD_HALF_SIZE * 2.0) / float(terrain_cells)
+var foliage_density := 1.0
+var tree_density := 1.0
 
 var player: CharacterBody3D
 var camera_pivot: Node3D
@@ -46,11 +49,29 @@ func _ready() -> void:
 	# Run procedural fallback posing after imported AnimationPlayers update.
 	process_priority = 100
 	rng.seed = 482019
+	_configure_world_quality()
 	_build_world()
 	_build_player()
 	_build_models()
 	_build_ui()
 
+
+func _configure_world_quality() -> void:
+	# Change WORLD_QUALITY_PROFILE to HIGH, MEDIUM or LOW for device classes.
+	match WORLD_QUALITY_PROFILE:
+		"HIGH":
+			terrain_cells = 144
+			foliage_density = 1.35
+			tree_density = 1.25
+		"LOW":
+			terrain_cells = 80
+			foliage_density = 0.55
+			tree_density = 0.65
+		_:
+			terrain_cells = 112
+			foliage_density = 1.0
+			tree_density = 1.0
+	terrain_step = (WORLD_HALF_SIZE * 2.0) / float(terrain_cells)
 
 func _terrain_height(x: float, z: float) -> float:
 	var broad := sin(x * 0.012 + sin(z * 0.009) * 1.4) * 4.2 + cos(z * 0.016 - x * 0.006) * 3.0
@@ -128,12 +149,12 @@ func _build_world() -> void:
 func _build_terrain() -> void:
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for z in range(TERRAIN_CELLS):
+	for z in range(terrain_cells):
 		for x in range(TERRAIN_CELLS):
-			var x0 := -WORLD_HALF_SIZE + float(x) * TERRAIN_STEP
+			var x0 := -WORLD_HALF_SIZE + float(x) * terrain_step
 			var z0 := -WORLD_HALF_SIZE + float(z) * TERRAIN_STEP
-			var x1 := x0 + TERRAIN_STEP
-			var z1 := z0 + TERRAIN_STEP
+			var x1 := x0 + terrain_step
+			var z1 := z0 + terrain_step
 			var a := Vector3(x0, _terrain_height(x0, z0), z0)
 			var b := Vector3(x1, _terrain_height(x1, z0), z0)
 			var c := Vector3(x0, _terrain_height(x0, z1), z1)
@@ -319,7 +340,7 @@ func _build_foliage_and_rocks() -> void:
 	shrub_material.albedo_color = Color(0.12, 0.26, 0.10)
 	shrub_material.roughness = 0.98
 	var shrub_transforms: Array[Transform3D] = []
-	for i in range(360):
+	for i in range(int(360 * foliage_density)):
 		var x := rng.randf_range(-WORLD_HALF_SIZE + 8.0, WORLD_HALF_SIZE - 8.0)
 		var z := rng.randf_range(-WORLD_HALF_SIZE + 8.0, WORLD_HALF_SIZE - 8.0)
 		if Vector2(x, z - 8.0).length() < 40.0 or Vector2(x + 112.0, z + 92.0).length() < 52.0 or Vector2(x - 86.0, z + 82.0).length() < 30.0:
@@ -349,7 +370,7 @@ func _build_foliage_and_rocks() -> void:
 	var flower_white := StandardMaterial3D.new()
 	flower_white.albedo_color = Color(0.84, 0.83, 0.68)
 	var flower_sets: Array[Array] = [[], [], []]
-	for i in range(210):
+	for i in range(int(210 * foliage_density)):
 		var fx := rng.randf_range(-WORLD_HALF_SIZE + 8.0, WORLD_HALF_SIZE - 8.0)
 		var fz := rng.randf_range(-WORLD_HALF_SIZE + 8.0, WORLD_HALF_SIZE - 8.0)
 		if Vector2(fx, fz - 8.0).length() < 34.0 or _terrain_height(fx, fz) > 30.0:
@@ -382,7 +403,7 @@ void fragment() {
 	var grass_material := ShaderMaterial.new()
 	grass_material.shader = grass_shader
 	var grass_transforms: Array[Transform3D] = []
-	for i in range(1700):
+	for i in range(int(1700 * foliage_density)):
 		var x := rng.randf_range(-WORLD_HALF_SIZE + 5.0, WORLD_HALF_SIZE - 5.0)
 		var z := rng.randf_range(-WORLD_HALF_SIZE + 5.0, WORLD_HALF_SIZE - 5.0)
 		if Vector2(x, z - 8.0).length() < 32.0 or _terrain_height(x, z) > 38.0:
@@ -412,7 +433,7 @@ func _build_detailed_tree_forest() -> void:
 		{"path": "res://assets/generated/Tree_Pine.glb", "name": "AlpinePines", "count": 32, "height": 8.5}
 	]
 	for entry in species:
-		_add_tree_species_multimesh(String(entry.path), String(entry.name), int(entry.count), float(entry.height))
+		_add_tree_species_multimesh(String(entry.path), String(entry.name), int(float(entry.count) * tree_density), float(entry.height))
 
 func _add_tree_species_multimesh(path: String, species_name: String, count: int, target_height: float) -> void:
 	if not ResourceLoader.exists(path):
