@@ -30,6 +30,7 @@ var hero_jump_requested := false
 var hero_run_phase := 0.0
 var hero_parts: Array[Dictionary] = []
 var hero_animation_players: Array[AnimationPlayer] = []
+var hero_skeleton_bones: Array[Dictionary] = []
 var hero_current_animation := ""
 var wood_count := 0
 var stone_count := 0
@@ -226,6 +227,7 @@ func _build_player() -> void:
 			hero_visual = hero_model
 			hero_visual_base_position = hero_model.position
 			hero_parts = _collect_named_rig_parts(hero_model, ["arm", "leg", "wing", "tail", "hand"])
+			hero_skeleton_bones = _collect_skeleton_bones(hero_model)
 			hero_animation_players = _find_animation_players(hero_model)
 			_play_model_animation(hero_animation_players, ["idle", "stand", "wait"])
 			hero_loaded = true
@@ -334,7 +336,7 @@ func _build_ui() -> void:
 	layer.add_child(title)
 
 	info_label = Label.new()
-	info_label.text = "Кайрон • открытый мир • существа с искусственным интеллектом"
+	info_label.text = "Кайрон • свободное исследование • строительство по сетке"
 	info_label.position = Vector2(30, 58)
 	info_label.add_theme_font_size_override("font_size", 16)
 	layer.add_child(info_label)
@@ -342,7 +344,9 @@ func _build_ui() -> void:
 	var base := Panel.new()
 	base.name = "VirtualJoystickBase"
 	base.size = Vector2(164, 164)
-	base.position = Vector2(38, 520)
+	base.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	joystick_center = Vector2(120.0, get_viewport().get_visible_rect().size.y - 120.0)
+	base.position = joystick_center - base.size * 0.5
 	var base_style := StyleBoxFlat.new()
 	base_style.bg_color = Color(0.08, 0.12, 0.16, 0.48)
 	base_style.border_color = Color(0.85, 0.88, 0.92, 0.65)
@@ -354,6 +358,7 @@ func _build_ui() -> void:
 	joystick_knob = Panel.new()
 	joystick_knob.name = "VirtualJoystickKnob"
 	joystick_knob.size = Vector2(72, 72)
+	joystick_knob.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	joystick_knob.position = Vector2(46, 46)
 	var knob_style := StyleBoxFlat.new()
 	knob_style.bg_color = Color(0.83, 0.87, 0.93, 0.82)
@@ -419,6 +424,8 @@ func _build_ui() -> void:
 	layer.add_child(build_button)
 
 func _update_joystick(screen_position: Vector2) -> void:
+	var viewport_size := get_viewport().get_visible_rect().size
+	joystick_center = Vector2(120.0, viewport_size.y - 120.0)
 	var offset := screen_position - joystick_center
 	if offset.length() > joystick_radius:
 		offset = offset.normalized() * joystick_radius
@@ -433,7 +440,7 @@ func _reset_joystick() -> void:
 		joystick_knob.position = Vector2(46, 46)
 
 func _attack() -> void:
-	hero_attack_timer = 0.72
+	hero_attack_timer = 0.62
 	_play_model_animation(hero_animation_players, ["attack", "slash", "hit", "combat"], true)
 	info_label.text = "Кайрон наносит удар!"
 
@@ -464,6 +471,38 @@ func _play_model_animation(players: Array[AnimationPlayer], keywords: Array, res
 					return str(animation_name)
 	return ""
 
+func _collect_skeleton_bones(root: Node) -> Array[Dictionary]:
+	var found: Array[Dictionary] = []
+	_collect_skeleton_bones_recursive(root, found)
+	return found
+
+func _collect_skeleton_bones_recursive(node: Node, found: Array[Dictionary]) -> void:
+	if node is Skeleton3D:
+		var skeleton := node as Skeleton3D
+		for bone_index in range(skeleton.get_bone_count()):
+			var bone_name := skeleton.get_bone_name(bone_index).to_lower()
+			if bone_name.contains("arm") or bone_name.contains("hand") or bone_name.contains("leg") or bone_name.contains("thigh") or bone_name.contains("calf") or bone_name.contains("foot"):
+				found.append({"skeleton": skeleton, "bone": bone_index, "name": bone_name, "base": skeleton.get_bone_pose_rotation(bone_index)})
+	for child in node.get_children():
+		_collect_skeleton_bones_recursive(child, found)
+
+func _animate_skeleton_bones(parts: Array[Dictionary], phase: float, move_amount: float, attack_amount: float, jump_amount: float) -> void:
+	for part in parts:
+		var skeleton = part.get("skeleton")
+		if not is_instance_valid(skeleton):
+			continue
+		var bone_index := int(part.get("bone", -1))
+		if bone_index < 0:
+			continue
+		var bone_name := str(part.get("name", ""))
+		var angle := 0.0
+		if bone_name.contains("leg") or bone_name.contains("thigh") or bone_name.contains("calf") or bone_name.contains("foot"):
+			angle = sin(phase * 8.0) * move_amount * 0.55 + jump_amount * 0.25
+		elif bone_name.contains("arm") or bone_name.contains("hand"):
+			angle = sin(phase * 8.0 + PI) * move_amount * 0.25 - jump_amount * 0.38 - attack_amount * 1.05
+		var base: Quaternion = part.get("base", Quaternion.IDENTITY)
+		skeleton.set_bone_pose_rotation(bone_index, base * Quaternion(Vector3.RIGHT, angle))
+
 func _collect_named_rig_parts(root: Node, keywords: Array) -> Array[Dictionary]:
 	var found: Array[Dictionary] = []
 	_collect_named_rig_parts_recursive(root, keywords, found)
@@ -479,7 +518,7 @@ func _collect_named_rig_parts_recursive(node: Node, keywords: Array, found: Arra
 	for child in node.get_children():
 		_collect_named_rig_parts_recursive(child, keywords, found)
 
-func _animate_parts(parts: Array[Dictionary], phase: float, move_amount: float, attack_amount: float, flap_amount: float) -> void:
+func _animate_parts(parts: Array[Dictionary], phase: float, move_amount: float, attack_amount: float, flap_amount: float, jump_amount: float = 0.0) -> void:
 	for part in parts:
 		var node = part.get("node")
 		if not is_instance_valid(node):
@@ -490,15 +529,15 @@ func _animate_parts(parts: Array[Dictionary], phase: float, move_amount: float, 
 		if node_name.contains("wing"):
 			animated.z += sin(phase * 2.8) * flap_amount * 0.9
 		elif node_name.contains("leg"):
-			animated.x += sin(phase * 8.0) * move_amount * 0.65
+			animated.x += sin(phase * 8.0) * move_amount * 0.65 + jump_amount * 0.28
 		elif node_name.contains("arm") or node_name.contains("hand"):
-			animated.x += sin(phase * 8.0 + PI) * move_amount * 0.28
-			animated.y += attack_amount * 1.1
+			animated.x += sin(phase * 8.0 + PI) * move_amount * 0.28 - jump_amount * 0.38 - attack_amount * 1.05
+			animated.y += attack_amount * 0.35
 		elif node_name.contains("tail"):
 			animated.y += sin(phase * 2.0) * 0.18
 		node.rotation = animated
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
 	var viewport_size := get_viewport().get_visible_rect().size
 	joystick_center = Vector2(120, viewport_size.y - 120)
 	if event is InputEventScreenTouch:
@@ -535,16 +574,24 @@ func _process(delta: float) -> void:
 		hero_run_phase += delta * 9.0
 	if hero_attack_timer > 0.0:
 		hero_attack_timer = maxf(0.0, hero_attack_timer - delta)
-	var attack_mix := sin((0.42 - hero_attack_timer) / 0.42 * PI) if hero_attack_timer > 0.0 else 0.0
+	var attack_duration := 0.62
+	var attack_elapsed := clampf((attack_duration - hero_attack_timer) / attack_duration, 0.0, 1.0)
+	var attack_mix := sin(attack_elapsed * PI) if hero_attack_timer > 0.0 else 0.0
+	var jump_mix := 1.0 if player != null and not player.is_on_floor() else 0.0
 	if hero_visual != null:
-		hero_visual.position = hero_visual_base_position + Vector3(0, sin(hero_run_phase * 2.0) * 0.055 if moving else 0.0, 0)
-		hero_visual.rotation.z = (sin(hero_run_phase) * 0.035 if moving else 0.0) + attack_mix * 0.22
-		_animate_parts(hero_parts, hero_run_phase, 1.0 if moving else 0.0, attack_mix, 0.0)
-		var desired_hero_animation := "attack" if hero_attack_timer > 0.0 else ("run" if moving else "idle")
+		var run_bob := sin(hero_run_phase * 2.0) * 0.055 if moving else 0.0
+		var jump_bob := 0.10 if jump_mix > 0.5 else 0.0
+		hero_visual.position = hero_visual_base_position + Vector3(0, run_bob + jump_bob, 0)
+		hero_visual.rotation.z = (sin(hero_run_phase) * 0.035 if moving else 0.0) + attack_mix * 0.32
+		_animate_parts(hero_parts, hero_run_phase, 1.0 if moving else 0.0, attack_mix, 0.0, jump_mix)
+		_animate_skeleton_bones(hero_skeleton_bones, hero_run_phase, 1.0 if moving else 0.0, attack_mix, jump_mix)
+		var desired_hero_animation := "attack" if hero_attack_timer > 0.0 else ("jump" if jump_mix > 0.5 else ("run" if moving else "idle"))
 		if desired_hero_animation != hero_current_animation:
 			var selected := ""
 			if desired_hero_animation == "attack":
 				selected = _play_model_animation(hero_animation_players, ["attack", "slash", "hit", "combat"], true)
+			elif desired_hero_animation == "jump":
+				selected = _play_model_animation(hero_animation_players, ["jump", "air", "fall"])
 			elif desired_hero_animation == "run":
 				selected = _play_model_animation(hero_animation_players, ["run", "walk", "move"])
 			else:
@@ -557,6 +604,7 @@ func _physics_process(delta: float) -> void:
 	var input_dir := move_vector
 	if hero_jump_requested and player.is_on_floor():
 		player.velocity.y = 8.2
+		hero_current_animation = ""
 	hero_jump_requested = false
 	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
 		input_dir.y -= 1.0
