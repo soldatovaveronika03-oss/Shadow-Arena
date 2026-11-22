@@ -262,14 +262,14 @@ func _process(delta: float) -> void:
 		var kind := String(data.kind)
 		var phase := float(data.phase) + delta * (5.5 if kind == "Dragon" else 4.5)
 		data.phase = phase
-		var legs: Array = data.legs
-		var moving := false
 		if kind == "Dragon":
 			_update_dragon(data, delta, phase)
 			continue
 		if kind == "SkyBird":
 			_update_bird(data, delta, phase)
 			continue
+		var legs: Array = data.legs
+		var moving := false
 		data.think = float(data.think) - delta
 		var distance_to_player := 9999.0
 		if player != null:
