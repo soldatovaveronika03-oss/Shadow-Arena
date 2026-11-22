@@ -2,8 +2,6 @@ name: Build ATLAS WILDS Unity Android APK
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ main ]
 
 jobs:
   build-unity-android:
