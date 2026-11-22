@@ -91,6 +91,7 @@ func _build_world() -> void:
 	_build_terrain()
 	_build_water_features()
 	_build_foliage_and_rocks()
+	_build_generated_tree_landmarks()
 	_build_resource_system()
 	_build_clouds()
 
@@ -284,6 +285,36 @@ func _build_foliage_and_rocks() -> void:
 	_add_multimesh(crown_mesh, crown_material, crown_transforms, "BroadleafCanopies")
 	_add_multimesh(pine_mesh, pine_material, pine_transforms, "PineCanopies")
 	_add_multimesh(rock_mesh, rock_material, rock_transforms, "ScatteredBoulders")
+
+
+func _build_generated_tree_landmarks() -> void:
+	# Blender-authored GLB trees are used as hero props when the asset workflow has produced them.
+	var tree_paths := [
+		"res://assets/generated/Tree_Old_Oak.glb",
+		"res://assets/generated/Tree_Young_Birch.glb",
+		"res://assets/generated/Tree_Wide_Ancient.glb",
+		"res://assets/generated/Tree_Pine.glb"
+	]
+	var placements := [
+		Vector3(-34.0, 0.0, -42.0), Vector3(34.0, 0.0, -54.0),
+		Vector3(-48.0, 0.0, 34.0), Vector3(48.0, 0.0, 38.0)
+	]
+	for i in range(tree_paths.size()):
+		var path: String = tree_paths[i]
+		if not ResourceLoader.exists(path):
+			continue
+		var packed := load(path) as PackedScene
+		if packed == null:
+			continue
+		var tree := packed.instantiate() as Node3D
+		if tree == null:
+			continue
+		tree.name = "BlenderTree_%02d" % i
+		_fit_model_to_height(tree, 7.0 if i == 2 else 5.5)
+		var place: Vector3 = placements[i]
+		tree.position = Vector3(place.x, _terrain_height(place.x, place.z), place.z)
+		tree.rotation.y = float(i) * 1.37
+		add_child(tree)
 
 func _build_clouds() -> void:
 	# Soft, layered cloud banks at several heights and scales.
