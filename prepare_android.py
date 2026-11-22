@@ -45,6 +45,26 @@ for src, dst in source_assets.items():
         raise SystemExit(f"Missing required saved model: {source}")
     shutil.copy2(source, ASSETS / dst)
 
+# Disable expensive automatic LOD generation for the four supplied GLB animals.
+# This keeps the original high-detail meshes intact and avoids lengthy import-time simplification.
+for model_name in source_assets.values():
+    model_path = ASSETS / model_name
+    import_settings = model_path.with_name(model_path.name + ".import")
+    import_settings.write_text(
+        '[remap]\\n'
+        'importer="scene"\\n'
+        'importer_version=1\\n'
+        'type="PackedScene"\\n'
+        '\\n'
+        '[deps]\\n'
+        f'source_file="res://assets/{model_name}"\\n'
+        '\\n'
+        '[params]\\n'
+        'meshes/generate_lods=false\\n',
+        encoding="utf-8",
+    )
+print("Disabled import-time LOD generation for saved animal models")
+
 # Connect the saved bear, horse and bison models to the existing quadruped spawn system.
 qpath = PROJECT / "quadruped.gd"
 q = qpath.read_text(encoding="utf-8")
