@@ -30,7 +30,20 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add GodotPrototype/assets/world/
-          if git diff --cached --quiet; then echo "No asset changes."; else git commit -m "Generate Blender 3D world and wildlife assets"; git push; fi
+          if git diff --cached --quiet; then
+            echo "No asset changes."
+          else
+            git commit -m "Generate Blender 3D world and wildlife assets"
+            for attempt in 1 2 3; do
+              git fetch origin main
+              git rebase origin/main
+              if git push origin HEAD:main; then
+                exit 0
+              fi
+              echo "Push attempt $attempt failed; retrying after rebase."
+            done
+            exit 1
+          fi
       - name: Upload world asset pack
         uses: actions/upload-artifact@v4
         with:
