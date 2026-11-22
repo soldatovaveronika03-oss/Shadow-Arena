@@ -69,7 +69,10 @@ func _terrain_height(x: float, z: float) -> float:
 	var natural_height := lerpf(broad + detail, mountain, mountain_mask) * (1.0 - clearing * 0.96)
 	var castle_distance := Vector2(x + 112.0, z + 92.0).length()
 	var terrace_weight := 1.0 - smoothstep(29.0, 47.0, castle_distance)
-	return lerpf(natural_height, 5.35233, terrace_weight)
+	var castle_ground := lerpf(natural_height, 5.35233, terrace_weight)
+	var lake_distance := Vector2((x - 86.0) * 0.82, (z + 82.0) * 1.12).length()
+	var lake_basin := (1.0 - smoothstep(18.0, 38.0, lake_distance)) * 5.2
+	return castle_ground - lake_basin
 
 func _build_world() -> void:
 	var world_env := WorldEnvironment.new()
@@ -460,10 +463,24 @@ void fragment() {
 		river_surface.add_vertex(l1)
 		river_surface.add_vertex(r1)
 	river_surface.generate_normals()
+	var river_shader := Shader.new()
+	river_shader.code = """
+shader_type spatial;
+render_mode blend_mix, cull_disabled;
+void fragment() {
+	float current = sin(UV.y * 80.0 - TIME * 2.4) * 0.04 + cos(UV.x * 34.0 + TIME) * 0.025;
+	ALBEDO = vec3(0.075,0.31,0.39) + vec3(current);
+	METALLIC = 0.16;
+	ROUGHNESS = 0.16;
+	ALPHA = 0.86;
+}
+"""
+	var river_material := ShaderMaterial.new()
+	river_material.shader = river_shader
 	var river := MeshInstance3D.new()
 	river.name = "WindingRiverWater"
 	river.mesh = river_surface.commit()
-	river.material_override = water_material
+	river.material_override = river_material
 	add_child(river)
 
 func _build_foliage_and_rocks() -> void:
