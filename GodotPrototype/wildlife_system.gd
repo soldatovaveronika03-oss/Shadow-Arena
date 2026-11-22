@@ -210,6 +210,8 @@ func _choose_target(data: Dictionary) -> void:
 	data.think = rng.randf_range(3.0, 7.0)
 
 func _process(delta: float) -> void:
+	if player == null:
+		player = get_parent().get_node_or_null("Kairon") as Node3D
 	world_time += delta
 	for part in wind_parts:
 		var node: Node3D = part.node
