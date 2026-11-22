@@ -188,10 +188,10 @@ func _build_village() -> void:
 	_box(village, "WellRoof", Vector3(0, 4.25, 18), Vector3(5.2, 0.35, 3.2), roof, false)
 	for side in [-1.0, 1.0]:
 		for i in range(8):
-			var z := -17.0 + float(i) * 4.8
-			_cylinder(village, "FencePost", Vector3(side * 27.0, 0.8, z), 0.12, 1.6, timber, false)
-		_box(village, "FenceRail", Vector3(side * 27.0, 0.55, z + 2.4), Vector3(0.18, 0.16, 4.8), timber, false)
-		_box(village, "FenceRailUpper", Vector3(side * 27.0, 1.1, z + 2.4), Vector3(0.18, 0.16, 4.8), timber, false)
+			var fence_z := -17.0 + float(i) * 4.8
+			_cylinder(village, "FencePost", Vector3(side * 27.0, 0.8, fence_z), 0.12, 1.6, timber, false)
+			_box(village, "FenceRail", Vector3(side * 27.0, 0.55, fence_z + 2.4), Vector3(0.18, 0.16, 4.8), timber, false)
+			_box(village, "FenceRailUpper", Vector3(side * 27.0, 1.1, fence_z + 2.4), Vector3(0.18, 0.16, 4.8), timber, false)
 
 func _build_village_house(parent: Node3D, local_pos: Vector3, scale: float, stone: Material, plaster: Material, timber: Material, roof: Material, dark: Material, house_name: String) -> void:
 	var house := Node3D.new()
