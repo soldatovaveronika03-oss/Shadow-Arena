@@ -52,7 +52,7 @@ func _ready() -> void:
 	_configure_world_quality()
 	_build_world()
 	_build_player()
-	_build_models()
+	# Imported non-dragon creature models are disabled during world repair.
 	_build_ui()
 
 
