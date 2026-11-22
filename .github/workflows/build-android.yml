@@ -1,0 +1,47 @@
+name: Build ATLAS WILDS ARENA APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "prepare_android.py"
+      - "dragon_realm_godot_v3.zip"
+      - "assets/**"
+      - ".github/workflows/build-android.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  android-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare project, integrate GLB animals and export APK
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -w /workspace \
+            barichello/godot-ci:4.2.2 \
+            bash -lc '
+              set -e
+              python3 prepare_android.py
+              PROJECT="build_project/dragon_realm_v3"
+              godot --headless --path "$PROJECT" --editor --import --quit
+              mkdir -p "$PROJECT/build"
+              godot --headless --path "$PROJECT" --export-debug "Android" "$PROJECT/build/ATLAS_WILDS_ARENA.apk"
+              test -s "$PROJECT/build/ATLAS_WILDS_ARENA.apk"
+              ls -lh "$PROJECT/build/ATLAS_WILDS_ARENA.apk"
+            '
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ATLAS-WILDS-ARENA-APK
+          path: build_project/dragon_realm_v3/build/ATLAS_WILDS_ARENA.apk
+          if-no-files-found: error
+          retention-days: 3
