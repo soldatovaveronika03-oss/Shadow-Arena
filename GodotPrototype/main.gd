@@ -101,6 +101,7 @@ func _build_world() -> void:
 	sun.light_energy = 1.15
 	sun.light_color = Color(1.0, 0.91, 0.76)
 	sun.shadow_enabled = true
+	sun.directional_shadow_max_distance = 180.0
 	add_child(sun)
 
 	_build_terrain()
@@ -405,38 +406,65 @@ void fragment() {
 	add_child(road)
 
 func _build_water_features() -> void:
-	var water_material := StandardMaterial3D.new()
-	water_material.albedo_color = Color(0.10, 0.31, 0.39, 0.82)
-	water_material.metallic = 0.12
-	water_material.roughness = 0.16
-	water_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	water_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var water_shader := Shader.new()
+	water_shader.code = """
+shader_type spatial;
+render_mode blend_mix, depth_draw_opaque, cull_disabled, diffuse_burley, specular_schlick_ggx;
+void fragment() {
+	vec2 uv = UV * 2.0 - 1.0;
+	float edge = length(uv);
+	if (edge > 1.0) discard;
+	float wave_a = sin(UV.x * 38.0 + TIME * 1.25) * 0.018;
+	float wave_b = cos(UV.y * 31.0 - TIME * 0.92) * 0.016;
+	float ripple = sin((UV.x + UV.y) * 78.0 + TIME * 2.0) * 0.012;
+	float fresnel = pow(1.0 - clamp(abs(NORMAL.y), 0.0, 1.0), 2.0);
+	ALBEDO = mix(vec3(0.045,0.22,0.28), vec3(0.22,0.48,0.55), 0.35 + fresnel * 0.55 + wave_a + wave_b + ripple);
+	METALLIC = 0.18;
+	ROUGHNESS = 0.12 + edge * 0.12;
+	SPECULAR = 0.85;
+	ALPHA = 0.82;
+}
+"""
+	var water_material := ShaderMaterial.new()
+	water_material.shader = water_shader
 	var lake_mesh := PlaneMesh.new()
 	lake_mesh.size = Vector2(58.0, 42.0)
+	lake_mesh.subdivide_width = 36
+	lake_mesh.subdivide_depth = 28
 	var lake := MeshInstance3D.new()
 	lake.name = "EmeraldLake"
 	lake.mesh = lake_mesh
 	lake.material_override = water_material
-	lake.position = Vector3(86.0, _terrain_height(86.0, -82.0) + 0.12, -82.0)
+	lake.position = Vector3(86.0, _terrain_height(86.0, -82.0) + 3.2, -82.0)
 	add_child(lake)
 
-	# A narrow river winds through the lowland; each segment follows local terrain height.
-	var river_material := StandardMaterial3D.new()
-	river_material.albedo_color = Color(0.12, 0.36, 0.43, 0.86)
-	river_material.roughness = 0.2
-	river_material.metallic = 0.08
-	river_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	for i in range(18):
-		var z := -150.0 + float(i) * 17.0
-		var x := -68.0 + sin(z * 0.018) * 22.0
-		var segment := MeshInstance3D.new()
-		var mesh := BoxMesh.new()
-		mesh.size = Vector3(5.5, 0.12, 18.0)
-		segment.mesh = mesh
-		segment.material_override = river_material
-		segment.position = Vector3(x, _terrain_height(x, z) + 0.10, z)
-		segment.rotation.y = cos(z * 0.018) * 0.22
-		add_child(segment)
+	# Curved river ribbon built as a continuous triangulated surface, not box segments.
+	var river_surface := SurfaceTool.new()
+	river_surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var river_steps := 72
+	for i in range(river_steps):
+		var z0 := -190.0 + float(i) * 5.25
+		var z1 := z0 + 5.25
+		var x0 := -68.0 + sin(z0 * 0.018) * 22.0
+		var x1 := -68.0 + sin(z1 * 0.018) * 22.0
+		var width0 := 2.0 + 0.55 * (0.5 + 0.5 * sin(z0 * 0.047))
+		var width1 := 2.0 + 0.55 * (0.5 + 0.5 * sin(z1 * 0.047))
+		var l0 := Vector3(x0 - width0, _terrain_height(x0 - width0, z0) + 0.16, z0)
+		var r0 := Vector3(x0 + width0, _terrain_height(x0 + width0, z0) + 0.16, z0)
+		var l1 := Vector3(x1 - width1, _terrain_height(x1 - width1, z1) + 0.16, z1)
+		var r1 := Vector3(x1 + width1, _terrain_height(x1 + width1, z1) + 0.16, z1)
+		river_surface.add_vertex(l0)
+		river_surface.add_vertex(l1)
+		river_surface.add_vertex(r0)
+		river_surface.add_vertex(r0)
+		river_surface.add_vertex(l1)
+		river_surface.add_vertex(r1)
+	river_surface.generate_normals()
+	var river := MeshInstance3D.new()
+	river.name = "WindingRiverWater"
+	river.mesh = river_surface.commit()
+	river.material_override = water_material
+	add_child(river)
 
 func _build_foliage_and_rocks() -> void:
 	# Instanced rocks and undergrowth; detailed tree silhouettes use Blender GLB assets.
