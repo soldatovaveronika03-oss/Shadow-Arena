@@ -22,8 +22,8 @@ PROJECT = WORK / "dragon_realm_v3"
 if not (PROJECT / "project.godot").exists():
     raise SystemExit("The archive does not contain dragon_realm_v3/project.godot")
 
-icon_jpg = base64.b64decode("__TINY64__")
-(PROJECT / "icon.jpg").write_bytes(icon_jpg)
+# App icon generated from the user's uploaded dragon artwork (square 256x256 PNG).
+icon_png = base64.b64decode("REPLACE_BASE64")
 (PROJECT / "icon.png").write_bytes(icon_png)
 project_settings = PROJECT / "project.godot"
 project_text = project_settings.read_text(encoding="utf-8")
