@@ -301,94 +301,172 @@ void fragment() {
 	add_child(river)
 
 func _build_foliage_and_rocks() -> void:
-	var trunk_mesh := CylinderMesh.new()
-	trunk_mesh.top_radius = 0.24
-	trunk_mesh.bottom_radius = 0.38
-	trunk_mesh.height = 4.8
-	var trunk_material := StandardMaterial3D.new()
-	trunk_material.albedo_color = Color(0.22, 0.13, 0.075)
-	trunk_material.roughness = 1.0
-	var crown_mesh := SphereMesh.new()
-	crown_mesh.radius = 1.0
-	crown_mesh.height = 2.0
-	var crown_material := StandardMaterial3D.new()
-	crown_material.albedo_color = Color(0.10, 0.24, 0.12)
-	crown_material.roughness = 1.0
-	var pine_mesh := CylinderMesh.new()
-	pine_mesh.top_radius = 0.0
-	pine_mesh.bottom_radius = 1.35
-	pine_mesh.height = 3.6
-	var pine_material := StandardMaterial3D.new()
-	pine_material.albedo_color = Color(0.075, 0.19, 0.13)
-	pine_material.roughness = 1.0
-	var trunk_transforms: Array[Transform3D] = []
-	var crown_transforms: Array[Transform3D] = []
-	var pine_transforms: Array[Transform3D] = []
 	var rock_mesh := SphereMesh.new()
 	rock_mesh.radius = 1.0
 	rock_mesh.height = 1.5
+	rock_mesh.radial_segments = 9
+	rock_mesh.rings = 5
 	var rock_material := StandardMaterial3D.new()
-	rock_material.albedo_color = Color(0.31, 0.33, 0.32)
-	rock_material.roughness = 0.98
+	rock_material.albedo_color = Color(0.29, 0.31, 0.29)
+	rock_material.roughness = 0.96
 	var rock_transforms: Array[Transform3D] = []
-	for i in range(230):
-		var x := rng.randf_range(-WORLD_HALF_SIZE + 10.0, WORLD_HALF_SIZE - 10.0)
-		var z := rng.randf_range(-WORLD_HALF_SIZE + 10.0, WORLD_HALF_SIZE - 10.0)
-		if Vector2(x, z - 8.0).length() < 48.0:
-			continue
-		if Vector2(x - 86.0, z + 82.0).length() < 34.0:
-			continue
-		if absf(x + 68.0 - sin(z * 0.018) * 22.0) < 8.0:
+	var shrub_mesh := SphereMesh.new()
+	shrub_mesh.radius = 0.5
+	shrub_mesh.height = 1.0
+	shrub_mesh.radial_segments = 8
+	shrub_mesh.rings = 5
+	var shrub_material := StandardMaterial3D.new()
+	shrub_material.albedo_color = Color(0.12, 0.26, 0.10)
+	shrub_material.roughness = 0.98
+	var shrub_transforms: Array[Transform3D] = []
+	for i in range(360):
+		var x := rng.randf_range(-WORLD_HALF_SIZE + 8.0, WORLD_HALF_SIZE - 8.0)
+		var z := rng.randf_range(-WORLD_HALF_SIZE + 8.0, WORLD_HALF_SIZE - 8.0)
+		if Vector2(x, z - 8.0).length() < 40.0 or Vector2(x + 112.0, z + 92.0).length() < 52.0 or Vector2(x - 86.0, z + 82.0).length() < 30.0:
 			continue
 		var ground := _terrain_height(x, z)
-		if ground > 34.0:
-			continue
 		var yaw_angle := rng.randf_range(0.0, TAU)
-		var trunk_scale := rng.randf_range(0.72, 1.3)
-		trunk_transforms.append(Transform3D(Basis(Vector3.UP, yaw_angle).scaled(Vector3(trunk_scale, trunk_scale, trunk_scale)), Vector3(x, ground + 2.4 * trunk_scale, z)))
-		var crown_scale := rng.randf_range(2.0, 3.4)
-		var crown_pos := Vector3(x, ground + 5.0 * trunk_scale, z)
 		if i % 3 == 0:
-			pine_transforms.append(Transform3D(Basis(Vector3.UP, yaw_angle).scaled(Vector3(crown_scale * 0.72, crown_scale, crown_scale * 0.72)), crown_pos))
+			var size := rng.randf_range(0.55, 2.1)
+			var rock_basis := Basis(Vector3.UP, yaw_angle).scaled(Vector3(size, size * rng.randf_range(0.55, 0.9), size * rng.randf_range(0.7, 1.2)))
+			rock_transforms.append(Transform3D(rock_basis, Vector3(x, ground + size * 0.32, z)))
 		else:
-			crown_transforms.append(Transform3D(Basis(Vector3.UP, yaw_angle).scaled(Vector3(crown_scale, crown_scale * 0.82, crown_scale)), crown_pos))
-		if i % 4 == 0:
-			var rock_size := rng.randf_range(0.7, 2.0)
-			rock_transforms.append(Transform3D(Basis(Vector3.UP, yaw_angle).scaled(Vector3(rock_size, rock_size * 0.7, rock_size * 0.9)), Vector3(x + rng.randf_range(-5.0,5.0), ground + rock_size * 0.38, z + rng.randf_range(-5.0,5.0))))
-	_add_multimesh(trunk_mesh, trunk_material, trunk_transforms, "ForestTreeTrunks")
-	_add_multimesh(crown_mesh, crown_material, crown_transforms, "BroadleafCanopies")
-	_add_multimesh(pine_mesh, pine_material, pine_transforms, "PineCanopies")
-	_add_multimesh(rock_mesh, rock_material, rock_transforms, "ScatteredBoulders")
+			var size := rng.randf_range(0.65, 1.35)
+			var shrub_basis := Basis(Vector3.UP, yaw_angle).scaled(Vector3(size, size * 0.78, size))
+			shrub_transforms.append(Transform3D(shrub_basis, Vector3(x, ground + size * 0.42, z)))
+	_add_multimesh(rock_mesh, rock_material, rock_transforms, "WeatheredRockScatter")
+	_add_multimesh(shrub_mesh, shrub_material, shrub_transforms, "DenseUndergrowth")
 
+	var flower_mesh := SphereMesh.new()
+	flower_mesh.radius = 0.5
+	flower_mesh.height = 0.5
+	flower_mesh.radial_segments = 7
+	flower_mesh.rings = 4
+	var flower_gold := StandardMaterial3D.new()
+	flower_gold.albedo_color = Color(0.92, 0.69, 0.22)
+	var flower_blue := StandardMaterial3D.new()
+	flower_blue.albedo_color = Color(0.40, 0.56, 0.82)
+	var flower_white := StandardMaterial3D.new()
+	flower_white.albedo_color = Color(0.84, 0.83, 0.68)
+	var flower_sets: Array[Array] = [[], [], []]
+	for i in range(210):
+		var fx := rng.randf_range(-WORLD_HALF_SIZE + 8.0, WORLD_HALF_SIZE - 8.0)
+		var fz := rng.randf_range(-WORLD_HALF_SIZE + 8.0, WORLD_HALF_SIZE - 8.0)
+		if Vector2(fx, fz - 8.0).length() < 34.0 or _terrain_height(fx, fz) > 30.0:
+			continue
+		var flower_scale := rng.randf_range(0.12, 0.24)
+		flower_sets[i % 3].append(Transform3D(Basis().scaled(Vector3(flower_scale, flower_scale * 0.7, flower_scale)), Vector3(fx, _terrain_height(fx, fz) + rng.randf_range(0.42, 0.72), fz)))
+	_add_multimesh(flower_mesh, flower_gold, flower_sets[0], "GoldenMeadowFlowers")
+	_add_multimesh(flower_mesh, flower_blue, flower_sets[1], "BlueMeadowFlowers")
+	_add_multimesh(flower_mesh, flower_white, flower_sets[2], "WhiteMeadowFlowers")
 
-func _build_generated_tree_landmarks() -> void:
-	# Blender-authored GLB trees are used as hero props when the asset workflow has produced them.
-	var tree_paths := [
-		"res://assets/generated/Tree_Old_Oak.glb",
-		"res://assets/generated/Tree_Young_Birch.glb",
-		"res://assets/generated/Tree_Wide_Ancient.glb",
-		"res://assets/generated/Tree_Pine.glb"
+	var grass_mesh := CapsuleMesh.new()
+	grass_mesh.radius = 0.045
+	grass_mesh.height = 0.78
+	grass_mesh.radial_segments = 5
+	grass_mesh.rings = 3
+	var grass_shader := Shader.new()
+	grass_shader.code = """
+shader_type spatial;
+render_mode cull_disabled;
+void vertex() {
+	float sway = sin(TIME * 1.65 + MODEL_MATRIX[3].x * 0.17 + MODEL_MATRIX[3].z * 0.13);
+	VERTEX.x += sway * 0.10 * max(VERTEX.y, 0.0);
+}
+void fragment() {
+	float variation = fract(sin(dot(MODEL_MATRIX[3].xz, vec2(12.9898,78.233))) * 43758.5453);
+	ALBEDO = mix(vec3(0.10,0.22,0.075), vec3(0.31,0.43,0.15), variation);
+	ROUGHNESS = 0.96;
+}
+"""
+	var grass_material := ShaderMaterial.new()
+	grass_material.shader = grass_shader
+	var grass_transforms: Array[Transform3D] = []
+	for i in range(1700):
+		var x := rng.randf_range(-WORLD_HALF_SIZE + 5.0, WORLD_HALF_SIZE - 5.0)
+		var z := rng.randf_range(-WORLD_HALF_SIZE + 5.0, WORLD_HALF_SIZE - 5.0)
+		if Vector2(x, z - 8.0).length() < 32.0 or _terrain_height(x, z) > 38.0:
+			continue
+		var blade_scale := rng.randf_range(0.55, 1.35)
+		var blade_yaw := rng.randf_range(0.0, TAU)
+		grass_transforms.append(Transform3D(Basis(Vector3.UP, blade_yaw).scaled(Vector3.ONE * blade_scale), Vector3(x, _terrain_height(x, z) + 0.35 * blade_scale, z)))
+	_add_multimesh(grass_mesh, grass_material, grass_transforms, "WindAnimatedGrass")
+	_build_detailed_tree_forest()
+
+func _collect_tree_mesh_data(node: Node, parent_transform: Transform3D, output: Array[Dictionary]) -> void:
+	var current_transform := parent_transform
+	if node is Node3D:
+		current_transform = parent_transform * (node as Node3D).transform
+	if node is MeshInstance3D:
+		var mesh_node := node as MeshInstance3D
+		if mesh_node.mesh != null:
+			output.append({"mesh": mesh_node.mesh, "material": mesh_node.material_override, "transform": current_transform})
+	for child in node.get_children():
+		_collect_tree_mesh_data(child, current_transform, output)
+
+func _build_detailed_tree_forest() -> void:
+	var species := [
+		{"path": "res://assets/generated/Tree_Old_Oak.glb", "name": "OakCanopy", "count": 24, "height": 8.0},
+		{"path": "res://assets/generated/Tree_Young_Birch.glb", "name": "BirchGrove", "count": 22, "height": 7.0},
+		{"path": "res://assets/generated/Tree_Wide_Ancient.glb", "name": "AncientOaks", "count": 13, "height": 9.0},
+		{"path": "res://assets/generated/Tree_Pine.glb", "name": "AlpinePines", "count": 32, "height": 8.5}
 	]
-	var placements := [
-		Vector3(-34.0, 0.0, -42.0), Vector3(34.0, 0.0, -54.0),
-		Vector3(-48.0, 0.0, 34.0), Vector3(48.0, 0.0, 38.0)
-	]
-	for i in range(tree_paths.size()):
-		var path: String = tree_paths[i]
-		if not ResourceLoader.exists(path):
+	for entry in species:
+		_add_tree_species_multimesh(String(entry.path), String(entry.name), int(entry.count), float(entry.height))
+
+func _add_tree_species_multimesh(path: String, species_name: String, count: int, target_height: float) -> void:
+	if not ResourceLoader.exists(path):
+		push_warning("Tree asset missing: " + path)
+		return
+	var packed := load(path) as PackedScene
+	if packed == null:
+		return
+	var source := packed.instantiate() as Node3D
+	if source == null:
+		return
+	_fit_model_to_height(source, target_height)
+	var mesh_data: Array[Dictionary] = []
+	_collect_tree_mesh_data(source, Transform3D.IDENTITY, mesh_data)
+	if mesh_data.is_empty():
+		source.free()
+		return
+	var placements: Array[Transform3D] = []
+	for i in range(count):
+		var accepted := false
+		var x := 0.0
+		var z := 0.0
+		var ground := 0.0
+		for attempt in range(20):
+			x = rng.randf_range(-WORLD_HALF_SIZE + 12.0, WORLD_HALF_SIZE - 12.0)
+			z = rng.randf_range(-WORLD_HALF_SIZE + 12.0, WORLD_HALF_SIZE - 12.0)
+			ground = _terrain_height(x, z)
+			if Vector2(x, z - 8.0).length() < 43.0 or Vector2(x + 112.0, z + 92.0).length() < 58.0 or Vector2(x - 86.0, z + 82.0).length() < 35.0 or ground > 48.0:
+				continue
+			accepted = true
+			break
+		if accepted:
+			var yaw_angle := rng.randf_range(0.0, TAU)
+			var instance_scale := rng.randf_range(0.78, 1.22)
+			placements.append(Transform3D(Basis(Vector3.UP, yaw_angle).scaled(Vector3.ONE * instance_scale), Vector3(x, ground, z)))
+	for mesh_index in range(mesh_data.size()):
+		var record: Dictionary = mesh_data[mesh_index]
+		var tree_mesh := record["mesh"] as Mesh
+		if tree_mesh == null:
 			continue
-		var packed := load(path) as PackedScene
-		if packed == null:
-			continue
-		var tree := packed.instantiate() as Node3D
-		if tree == null:
-			continue
-		tree.name = "BlenderTree_%02d" % i
-		_fit_model_to_height(tree, 7.0 if i == 2 else 5.5)
-		var place: Vector3 = placements[i]
-		tree.position = Vector3(place.x, _terrain_height(place.x, place.z), place.z)
-		tree.rotation.y = float(i) * 1.37
-		add_child(tree)
+		var local_transform: Transform3D = record["transform"]
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = tree_mesh
+		mm.instance_count = placements.size()
+		for j in range(placements.size()):
+			mm.set_instance_transform(j, placements[j] * local_transform)
+		var instance := MultiMeshInstance3D.new()
+		instance.name = species_name + "_Part_%02d" % mesh_index
+		instance.multimesh = mm
+		instance.material_override = record["material"] as Material
+		instance.visibility_range_end = 230.0
+		add_child(instance)
+	source.free()
 
 func _build_clouds() -> void:
 	# Soft, layered cloud banks at several heights and scales.
@@ -424,6 +502,12 @@ func _add_multimesh(mesh: Mesh, material: Material, transforms: Array[Transform3
 	instance.name = node_name
 	instance.multimesh = multi
 	instance.material_override = material
+	if node_name == "WindAnimatedGrass":
+		instance.visibility_range_end = 82.0
+	elif node_name == "DistantCloudBanks":
+		instance.visibility_range_end = 420.0
+	else:
+		instance.visibility_range_end = 230.0
 	add_child(instance)
 
 func _build_player() -> void:
