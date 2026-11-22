@@ -80,8 +80,8 @@ func _terrain_height(x: float, z: float) -> float:
 	var mountain_mask: float = smoothstep(86.0, 178.0, distance)
 	var wx: float = x + sin(z * 0.018) * 18.0 + cos(x * 0.014) * 8.0
 	var wz: float = z + cos(x * 0.016) * 16.0 + sin(z * 0.012) * 7.0
-	var ridge_a := abs(sin(wx * 0.031 + cos(wz * 0.021) * 1.6))
-	var ridge_b := abs(cos(wz * 0.027 - sin(wx * 0.019) * 1.25))
+	var ridge_a := absf(sin(wx * 0.031 + cos(wz * 0.021) * 1.6))
+	var ridge_b := absf(cos(wz * 0.027 - sin(wx * 0.019) * 1.25))
 	var ridged := pow(maxf(ridge_a * ridge_b, 0.008), 0.48) * 48.0
 	var peaks := pow(maxf(0.0, sin(wx * 0.047) * cos(wz * 0.039)), 1.35) * 22.0
 	var mountain := ridged + peaks + sin(wx * 0.021 + wz * 0.013) * 5.0 + detail * 1.8
