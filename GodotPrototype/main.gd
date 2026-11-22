@@ -36,6 +36,9 @@ var hero_parts: Array[Dictionary] = []
 var hero_animation_players: Array[AnimationPlayer] = []
 var hero_skeleton_bones: Array[Dictionary] = []
 var hero_current_animation := ""
+var hero_was_on_floor := true
+var hero_landing_timer := 0.0
+var hero_jump_buffer := 0.0
 var wood_count := 0
 var stone_count := 0
 var fiber_count := 0
@@ -562,17 +565,8 @@ func _add_fallback_hero(parent: Node3D) -> void:
 	parent.add_child(body)
 
 func _build_models() -> void:
-	# Preserve the user's uploaded creature as a stationary world model.
-	# Animal AI and autonomous movement are intentionally disabled.
-	var creature_path := "res://assets/fb414334-be07-4e6e-9570-0fcc8769768a.glb"
-	if ResourceLoader.exists(creature_path):
-		var creature_scene = load(creature_path) as PackedScene
-		if creature_scene != null:
-			var creature := creature_scene.instantiate() as Node3D
-			creature.name = "WildCreature_Static"
-			_fit_model_to_height(creature, 3.2)
-			creature.position = Vector3(18.0, _terrain_height(18.0, -26.0), -26.0)
-			add_child(creature)
+	# Uploaded GLBs are static meshes; wildlife_system.gd owns the dragon entity.
+	pass
 
 func _build_ui() -> void:
 	var layer := CanvasLayer.new()
@@ -694,6 +688,7 @@ func _attack() -> void:
 	info_label.text = "Кайрон наносит удар!"
 
 func _jump() -> void:
+	hero_jump_buffer = 0.18
 	hero_jump_requested = true
 
 func _find_animation_players(root: Node) -> Array[AnimationPlayer]:
@@ -879,10 +874,12 @@ func _physics_process(delta: float) -> void:
 	if player == null:
 		return
 	var input_dir := move_vector
-	if hero_jump_requested and player.is_on_floor():
+	hero_jump_buffer = maxf(0.0, hero_jump_buffer - delta)
+	if hero_jump_buffer > 0.0 and player.is_on_floor():
 		player.velocity.y = 8.2
 		hero_current_animation = ""
-	hero_jump_requested = false
+		hero_jump_buffer = 0.0
+		hero_jump_requested = false
 	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
 		input_dir.y -= 1.0
 	if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
@@ -900,6 +897,12 @@ func _physics_process(delta: float) -> void:
 	else:
 		player.velocity.y = -0.15
 	player.move_and_slide()
+	var on_floor_now := player.is_on_floor()
+	if on_floor_now and not hero_was_on_floor and player.velocity.y <= 0.0:
+		hero_landing_timer = 0.22
+		hero_current_animation = ""
+	hero_was_on_floor = on_floor_now
+	hero_landing_timer = maxf(0.0, hero_landing_timer - delta)
 	# Last-resort ground safety: never allow the hero to remain below the
 	# mathematically defined terrain surface if a physics contact is missed.
 	var ground_y := _terrain_height(player.global_position.x, player.global_position.z)
