@@ -5,7 +5,7 @@
 #include "AtlasWorldGenerator.generated.h"
 
 class UInstancedStaticMeshComponent;
-class UStaticMeshComponent;
+class UProceduralMeshComponent;
 
 UCLASS()
 class ATLASWILDSARENA_API AAtlasWorldGenerator : public AActor
@@ -20,10 +20,10 @@ protected:
 
 private:
     UPROPERTY(VisibleAnywhere)
-    TObjectPtr<UStaticMeshComponent> Ground;
+    TObjectPtr<UProceduralMeshComponent> Terrain;
 
     UPROPERTY(VisibleAnywhere)
-    TObjectPtr<UStaticMeshComponent> River;
+    TObjectPtr<UProceduralMeshComponent> River;
 
     UPROPERTY(VisibleAnywhere)
     TObjectPtr<UInstancedStaticMeshComponent> TreeTrunks;
@@ -34,8 +34,6 @@ private:
     UPROPERTY(VisibleAnywhere)
     TObjectPtr<UInstancedStaticMeshComponent> Rocks;
 
-    UPROPERTY(VisibleAnywhere)
-    TObjectPtr<UInstancedStaticMeshComponent> Hills;
-
     void BuildWorld();
+    float SampleTerrainHeight(float X, float Y) const;
 };
