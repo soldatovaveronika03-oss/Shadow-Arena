@@ -37,22 +37,40 @@ jobs:
 
       - name: Prepare project, integrate GLB animals and export APK
         run: |
+          set -e
           python3 prepare_android.py
-          mkdir -p "$HOME/.config/godot"
-          cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
+
+          mkdir -p "$HOME/.config/godot" "$HOME/.android"
+          keytool -genkeypair -v \
+            -keystore "$HOME/.android/debug.keystore" \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -dname "CN=Android Debug,O=Android,C=US" \
+            -validity 10000 \
+            -keyalg RSA \
+            -keysize 2048
+
+          cat > "$HOME/.config/godot/editor_settings-4.tres" <<'EOF'
           [gd_resource type="EditorSettings" format=3]
           [resource]
-          export/android/android_sdk_path = "$ANDROID_HOME"
-          export/android/java_sdk_path = "$JAVA_HOME"
+          export/android/android_sdk_path = "/opt/android-sdk"
+          export/android/java_sdk_path = "/opt/java/openjdk"
+          export/android/debug_keystore = "/root/.android/debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
           EOF
+
           docker run --rm \
             -e HOME=/root \
             -e ANDROID_HOME=/opt/android-sdk \
+            -e ANDROID_SDK_ROOT=/opt/android-sdk \
             -e JAVA_HOME=/opt/java/openjdk \
             -v "$GITHUB_WORKSPACE:/workspace" \
             -v "$ANDROID_HOME:/opt/android-sdk" \
             -v "$JAVA_HOME:/opt/java/openjdk" \
             -v "$HOME/.config/godot:/root/.config/godot" \
+            -v "$HOME/.android:/root/.android" \
             -w /workspace \
             barichello/godot-ci:4.2.2 \
             bash -lc '
