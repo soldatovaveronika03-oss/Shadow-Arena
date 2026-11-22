@@ -28,8 +28,6 @@ var hero_visual_base_position := Vector3.ZERO
 var hero_attack_timer := 0.0
 var hero_jump_requested := false
 var hero_run_phase := 0.0
-var ai_units: Array[Dictionary] = []
-var wing_parts: Array[Dictionary] = []
 var hero_parts: Array[Dictionary] = []
 var hero_animation_players: Array[AnimationPlayer] = []
 var hero_current_animation := ""
@@ -396,61 +394,28 @@ func _add_fallback_hero(parent: Node3D) -> void:
 	parent.add_child(body)
 
 func _build_models() -> void:
-	# The newly uploaded castle model is placed as a landmark in the distant valley.
+	# Preserve the user's original uploaded castle model.
 	var castle_path := "res://assets/b92be73b-399b-4f3c-a238-6124bf7f379d.glb"
 	if ResourceLoader.exists(castle_path):
 		var castle_scene = load(castle_path) as PackedScene
 		if castle_scene != null:
 			var castle := castle_scene.instantiate() as Node3D
-			castle.name = "GreatCastle_350x"
+			castle.name = "GreatCastle"
 			castle.scale = Vector3.ONE * 350.0
 			castle.position = Vector3(0.0, _terrain_height(0.0, -155.0), -155.0)
 			add_child(castle)
 
-	# One dragon asset is reused for a whole size range; the largest is 50x
-	# the prototype creature scale. Smaller dragons use 5x, 10x, 20x and 35x.
-	var dragon_sizes: Array[float] = [5.0, 10.0, 20.0, 35.0, 50.0]
-	var dragon_spawns: Array[Vector3] = [
-		Vector3(-58.0, 0.0, -72.0),
-		Vector3(-34.0, 0.0, -96.0),
-		Vector3(34.0, 0.0, -92.0),
-		Vector3(62.0, 0.0, -122.0),
-		Vector3(0.0, 0.0, -188.0)
-	]
-	var dragon_path := "res://assets/atlas_dragon.glb"
-	for i in range(dragon_sizes.size()):
-		_spawn_creature(dragon_path, true, dragon_sizes[i], dragon_spawns[i], "Dragon_" + str(i + 1))
-
-	# Keep the other uploaded creature as an additional AI-controlled enemy.
+	# Preserve the user's uploaded creature as a stationary world model.
+	# Animal AI and autonomous movement are intentionally disabled.
 	var creature_path := "res://assets/fb414334-be07-4e6e-9570-0fcc8769768a.glb"
-	_spawn_creature(creature_path, false, 1.0, Vector3(18.0, 0.0, -26.0), "WildCreature")
-
-func _spawn_creature(model_path: String, is_dragon: bool, size_multiplier: float, spawn: Vector3, unit_name: String) -> void:
-	if not ResourceLoader.exists(model_path):
-		return
-	var packed = load(model_path) as PackedScene
-	if packed == null:
-		return
-	var unit := CharacterBody3D.new()
-	unit.name = unit_name
-	unit.position = Vector3(spawn.x, _terrain_height(spawn.x, spawn.z) + 0.9, spawn.z)
-	var shape_node := CollisionShape3D.new()
-	var capsule := CapsuleShape3D.new()
-	# Keep collision practical on mobile even for visually gigantic dragons.
-	capsule.radius = 0.75
-	capsule.height = 1.8
-	shape_node.shape = capsule
-	shape_node.position.y = 0.9
-	unit.add_child(shape_node)
-	var model := packed.instantiate() as Node3D
-	model.name = unit_name + "_Model"
-	_fit_model_to_height(model, 3.2 * size_multiplier)
-	unit.add_child(model)
-	add_child(unit)
-	var parts := _collect_named_rig_parts(model, ["wing", "arm", "leg", "tail"])
-	var anim_players := _find_animation_players(model)
-	_play_model_animation(anim_players, ["idle", "stand", "fly"] if is_dragon else ["idle", "stand"])
-	ai_units.append({"body": unit, "model": model, "parts": parts, "animations": anim_players, "current_animation": "idle", "home": Vector3(spawn.x, 0.0, spawn.z), "phase": rng.randf_range(0.0, TAU), "state": "wander", "speed": rng.randf_range(2.0, 3.2), "dragon": is_dragon, "model_base": model.position, "size_multiplier": size_multiplier})
+	if ResourceLoader.exists(creature_path):
+		var creature_scene = load(creature_path) as PackedScene
+		if creature_scene != null:
+			var creature := creature_scene.instantiate() as Node3D
+			creature.name = "WildCreature_Static"
+			_fit_model_to_height(creature, 3.2)
+			creature.position = Vector3(18.0, _terrain_height(18.0, -26.0), -26.0)
+			add_child(creature)
 
 func _build_ui() -> void:
 	var layer := CanvasLayer.new()
@@ -679,57 +644,6 @@ func _process(delta: float) -> void:
 			else:
 				selected = _play_model_animation(hero_animation_players, ["idle", "stand", "wait"])
 			hero_current_animation = desired_hero_animation
-
-	for unit_data in ai_units:
-		var body: CharacterBody3D = unit_data["body"]
-		var model: Node3D = unit_data["model"]
-		if not is_instance_valid(body):
-			continue
-		var to_player := player.global_position - body.global_position
-		var distance := Vector2(to_player.x, to_player.z).length()
-		var state := "attack" if distance < 3.0 else ("chase" if distance < 19.0 else "wander")
-		unit_data["state"] = state
-		var target_dir := Vector3.ZERO
-		if state == "chase" and distance > 2.6:
-			target_dir = Vector3(to_player.x, 0, to_player.z).normalized()
-		else:
-			var phase: float = unit_data["phase"]
-			phase += delta * 0.55
-			unit_data["phase"] = phase
-			var home: Vector3 = unit_data["home"]
-			var wander_target := Vector3(home.x + cos(phase) * 7.0, 0, home.z + sin(phase * 0.8) * 7.0)
-			target_dir = Vector3(wander_target.x - body.global_position.x, 0, wander_target.z - body.global_position.z).normalized()
-		var speed: float = unit_data["speed"]
-		body.velocity.x = target_dir.x * speed
-		body.velocity.z = target_dir.z * speed
-		if not body.is_on_floor():
-			body.velocity.y -= 24.0 * delta
-		else:
-			body.velocity.y = -0.1
-		body.move_and_slide()
-		var ground := _terrain_height(body.global_position.x, body.global_position.z)
-		if body.global_position.y < ground + 0.05:
-			body.global_position.y = ground + 0.05
-			body.velocity.y = 0.0
-		if target_dir.length() > 0.1:
-			body.rotation.y = lerp_angle(body.rotation.y, atan2(-target_dir.x, -target_dir.z), delta * 3.5)
-		var creature_phase: float = unit_data["phase"] + Time.get_ticks_msec() * 0.001 * 5.0
-		var is_dragon: bool = unit_data["dragon"]
-		var desired_creature_animation := "attack" if state == "attack" else ("run" if target_dir.length() > 0.1 else "idle")
-		if desired_creature_animation != str(unit_data.get("current_animation", "")):
-			var anims: Array[AnimationPlayer] = unit_data["animations"]
-			var selected_anim := ""
-			if desired_creature_animation == "attack":
-				selected_anim = _play_model_animation(anims, ["attack", "bite", "claw", "combat"], true)
-			elif desired_creature_animation == "run":
-				selected_anim = _play_model_animation(anims, ["run", "walk", "fly"] if is_dragon else ["run", "walk", "move"])
-			else:
-				selected_anim = _play_model_animation(anims, ["fly", "idle", "stand"] if is_dragon else ["idle", "stand", "wait"])
-			unit_data["current_animation"] = desired_creature_animation
-		var model_base: Vector3 = unit_data["model_base"]
-		model.position = model_base + Vector3(0, sin(creature_phase * 2.0) * (0.12 if is_dragon else 0.035), 0)
-		model.rotation.z = sin(creature_phase * 2.0) * 0.035
-		_animate_parts(unit_data["parts"], creature_phase, 1.0 if target_dir.length() > 0.1 else 0.0, 1.0 if state == "attack" else 0.0, 1.0 if is_dragon else 0.0)
 
 func _physics_process(delta: float) -> void:
 	if player == null:
