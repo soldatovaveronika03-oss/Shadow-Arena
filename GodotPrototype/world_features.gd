@@ -14,6 +14,9 @@ func _terrain_height(x: float, z: float) -> float:
 	# Use the exact terrain function from the main world so landmarks never float.
 	return float(get_parent().call("_terrain_height", x, z))
 
+func _terrain_delta(local_x: float, local_z: float, origin: Vector3) -> float:
+	return _terrain_height(origin.x + local_x, origin.z + local_z) - origin.y
+
 func _material(color: Color, roughness: float = 0.9, metallic: float = 0.0) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color
@@ -175,11 +178,11 @@ func _build_village() -> void:
 	var timber := _material(Color(0.22, 0.12, 0.065), 0.9)
 	var roof := _material(Color(0.20, 0.13, 0.10), 0.9)
 	var dark := _material(Color(0.075, 0.065, 0.045), 0.98)
-	_build_village_house(village, Vector3(0, 0, 0), 1.18, stone, plaster, timber, roof, dark, "VillageInn")
-	_build_village_house(village, Vector3(-15, 0, -8), 0.82, stone, plaster, timber, roof, dark, "NorthCottage")
-	_build_village_house(village, Vector3(16, 0, -11), 0.88, stone, plaster, timber, roof, dark, "EastCottage")
-	_build_village_house(village, Vector3(-17, 0, 13), 0.78, stone, plaster, timber, roof, dark, "SouthCottage")
-	_build_village_house(village, Vector3(17, 0, 14), 0.92, stone, plaster, timber, roof, dark, "CraftsmanHome")
+	_build_village_house(village, Vector3(0, _terrain_delta(0, 0, village.position), 0), 1.18, stone, plaster, timber, roof, dark, "VillageInn")
+	_build_village_house(village, Vector3(-15, _terrain_delta(-15, -8, village.position), -8), 0.82, stone, plaster, timber, roof, dark, "NorthCottage")
+	_build_village_house(village, Vector3(16, _terrain_delta(16, -11, village.position), -11), 0.88, stone, plaster, timber, roof, dark, "EastCottage")
+	_build_village_house(village, Vector3(-17, _terrain_delta(-17, 13, village.position), 13), 0.78, stone, plaster, timber, roof, dark, "SouthCottage")
+	_build_village_house(village, Vector3(17, _terrain_delta(17, 14, village.position), 14), 0.92, stone, plaster, timber, roof, dark, "CraftsmanHome")
 	# Village well and low timber fencing.
 	_cylinder(village, "VillageWellStoneRim", Vector3(0, 0.65, 18), 1.45, 1.3, stone)
 	_cylinder(village, "VillageWellWater", Vector3(0, 1.28, 18), 1.08, 0.08, _material(Color(0.06, 0.24, 0.30), 0.2), false)
