@@ -308,6 +308,10 @@ func _update_dragon(data: Dictionary, delta: float, phase: float) -> void:
 	data.flight_time = float(data.flight_time) + delta
 	data.think = float(data.think) - delta
 	if String(data.state) == "ground" and float(data.think) <= 0.0:
+		data.state = "ground_walk"
+		data.think = rng.randf_range(4.0, 7.0)
+		data.target = root.position + Vector3(rng.randf_range(-18.0, 18.0), 0.0, rng.randf_range(-18.0, 18.0))
+	elif String(data.state) == "ground_walk" and float(data.think) <= 0.0:
 		data.state = "takeoff"
 		data.think = 2.2
 		data.target = Vector3(rng.randf_range(-110.0, 110.0), 0.0, rng.randf_range(-110.0, 110.0))
@@ -318,8 +322,16 @@ func _update_dragon(data: Dictionary, delta: float, phase: float) -> void:
 		data.state = "ground"
 		data.think = rng.randf_range(7.0, 13.0)
 		data.target = root.position
-	if String(data.state) == "ground":
+	if String(data.state) == "ground" or String(data.state) == "ground_walk":
 		root.position.y = _ground(root.position.x, root.position.z)
+		if String(data.state) == "ground_walk":
+			var walk_target: Vector3 = data.target
+			var walk_direction := Vector3(walk_target.x - root.position.x, 0.0, walk_target.z - root.position.z)
+			if walk_direction.length() > 1.8:
+				root.position += walk_direction.normalized() * 3.8 * delta
+				root.rotation.y = lerp_angle(root.rotation.y, atan2(-walk_direction.x, -walk_direction.z), minf(delta * 2.6, 1.0))
+			else:
+				data.think = 0.0
 	else:
 		var target: Vector3 = data.target
 		var target_y := 20.0 + sin(phase * 0.22) * 5.0
@@ -339,11 +351,13 @@ func _update_dragon(data: Dictionary, delta: float, phase: float) -> void:
 	for i in range(wings.size()):
 		var wing: Node3D = wings[i]
 		var side := -1.0 if i == 0 else 1.0
-		wing.rotation.z = side * (0.12 + sin(phase * 2.8) * (0.72 if String(data.state) != "ground" else 0.18))
+		var flap := 0.18 if String(data.state) == "ground" else (0.34 if String(data.state) == "ground_walk" else 0.72)
+		wing.rotation.z = side * (0.12 + sin(phase * 2.8) * flap)
 		wing.rotation.x = cos(phase * 2.8) * 0.12
 	for i in range(legs.size()):
 		var leg: Node3D = legs[i]
-		leg.rotation.x = sin(phase * 2.0 + float(i)) * (0.24 if String(data.state) == "ground" else 0.05)
+		var stride := 0.48 if String(data.state) == "ground_walk" else (0.24 if String(data.state) == "ground" else 0.05)
+		leg.rotation.x = sin(phase * 2.0 + float(i)) * stride
 	var tail: Node3D = data.tail
 	tail.rotation.y = sin(phase * 0.65) * 0.22
 	var neck: Node3D = data.neck
