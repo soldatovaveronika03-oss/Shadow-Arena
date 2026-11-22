@@ -457,18 +457,31 @@ func _add_fallback_hero(parent: Node3D) -> void:
 	parent.add_child(body)
 
 func _build_models() -> void:
-	# Preserve the user's uploaded creature as a stationary world model.
-	# Animal AI and autonomous movement are intentionally disabled.
-	var creature_path := "res://assets/fb414334-be07-4e6e-9570-0fcc8769768a.glb"
-	if ResourceLoader.exists(creature_path):
-		var creature_scene = load(creature_path) as PackedScene
-		if creature_scene != null:
-			var creature := creature_scene.instantiate() as Node3D
-			creature.name = "WildCreature_Static"
-			_fit_model_to_height(creature, 3.2)
-			creature.position = Vector3(18.0, _terrain_height(18.0, -26.0), -26.0)
-			add_child(creature)
+	# Four imported wildlife models. The surrounding world and player systems remain unchanged.
+	_spawn_wildlife_model("Бизон", "res://assets/Бизон1.glb", 2.8, Vector2(-27.0, -38.0), ["idle", "walk", "run"])
+	_spawn_wildlife_model("Медведь", "res://assets/brown bear 3d model.glb", 2.6, Vector2(28.0, -43.0), ["idle", "stand", "walk"])
+	_spawn_wildlife_model("Дракон", "res://assets/dragon 3d model.glb", 8.5, Vector2(76.0, -24.0), ["idle", "fly", "wing"])
+	_spawn_wildlife_model("Лошадь", "res://assets/wild chestnut stallion 3d model.glb", 2.2, Vector2(-34.0, 31.0), ["idle", "stand", "walk"])
 
+
+func _spawn_wildlife_model(creature_name: String, model_path: String, target_height: float, map_position: Vector2, idle_keywords: Array) -> void:
+	if not ResourceLoader.exists(model_path):
+		push_warning("Модель животного не найдена: " + model_path)
+		return
+	var packed_scene := load(model_path) as PackedScene
+	if packed_scene == null:
+		push_warning("Не удалось загрузить модель животного: " + model_path)
+		return
+	var creature := packed_scene.instantiate() as Node3D
+	if creature == null:
+		push_warning("GLB не содержит корневой Node3D: " + model_path)
+		return
+	creature.name = creature_name
+	_fit_model_to_height(creature, target_height)
+	creature.position = Vector3(map_position.x, _terrain_height(map_position.x, map_position.y), map_position.y)
+	add_child(creature)
+	var creature_animations := _find_animation_players(creature)
+	_play_model_animation(creature_animations, idle_keywords)
 func _build_ui() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
