@@ -246,8 +246,6 @@ package/signed=true
 version/code=1
 version/name="1.0"
 screen/immersive_mode=true
-launcher_icons/main_192x192="res://icon.png"
-launcher_icons/adaptive_foreground_432x432="res://icon.png"
 '''
 (PROJECT / "export_presets.cfg").write_text(preset, encoding="utf-8")
 print("Prepared project:", PROJECT)
