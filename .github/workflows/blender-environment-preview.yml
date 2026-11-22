@@ -1,0 +1,29 @@
+name: Build Blender Environment Preview
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "BlenderPreview/**"
+      - ".github/workflows/blender-environment-preview.yml"
+permissions:
+  contents: read
+jobs:
+  build-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Blender
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender
+      - name: Generate tree variants and previews
+        run: |
+          mkdir -p output
+          blender -b -t 2 --python BlenderPreview/create_trees.py
+      - name: Upload preview package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ATLAS-WILDS-TREE-PREVIEW
+          path: output/
+          if-no-files-found: error
+          retention-days: 14
