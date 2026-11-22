@@ -76,7 +76,6 @@ func _build_world() -> void:
 	add_child(sun)
 
 	_build_terrain()
-	_build_nature()
 	_build_resource_system()
 	_build_clouds()
 
@@ -302,17 +301,6 @@ func _add_fallback_hero(parent: Node3D) -> void:
 	parent.add_child(body)
 
 func _build_models() -> void:
-	# Preserve the user's original uploaded castle model.
-	var castle_path := "res://assets/b92be73b-399b-4f3c-a238-6124bf7f379d.glb"
-	if ResourceLoader.exists(castle_path):
-		var castle_scene = load(castle_path) as PackedScene
-		if castle_scene != null:
-			var castle := castle_scene.instantiate() as Node3D
-			castle.name = "GreatCastle"
-			castle.scale = Vector3.ONE * 350.0
-			castle.position = Vector3(0.0, _terrain_height(0.0, -155.0), -155.0)
-			add_child(castle)
-
 	# Preserve the user's uploaded creature as a stationary world model.
 	# Animal AI and autonomous movement are intentionally disabled.
 	var creature_path := "res://assets/fb414334-be07-4e6e-9570-0fcc8769768a.glb"
