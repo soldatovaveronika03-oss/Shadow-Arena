@@ -48,34 +48,49 @@ func _ready() -> void:
 	_build_models()
 	_build_ui()
 
+
 func _terrain_height(x: float, z: float) -> float:
-	# Wide, gently rolling terrain; the starting clearing remains almost flat.
-	var hills := sin(x * 0.021) * 2.1 + cos(z * 0.018) * 1.7
-	hills += sin((x + z) * 0.012) * 1.2
-	var clearing := clampf(1.0 - Vector2(x, z - 8.0).length() / 34.0, 0.0, 1.0)
-	return hills * (1.0 - clearing * 0.88)
+	# Broad valley around the spawn, with a rising mountain rim and layered ridges.
+	var rolling := sin(x * 0.018) * 2.8 + cos(z * 0.021) * 2.2
+	rolling += sin((x + z) * 0.011) * 1.8 + cos((x - z) * 0.014) * 1.1
+	var distance := Vector2(x * 0.92, z * 1.04).length()
+	var mountain_mask := smoothstep(112.0, 198.0, distance)
+	var ridge_a := abs(sin(x * 0.022 + cos(z * 0.013) * 1.7))
+	var ridge_b := abs(cos(z * 0.019 - sin(x * 0.017) * 1.3))
+	var ridges := pow(maxf(ridge_a * ridge_b, 0.015), 0.62) * 34.0
+	var peaks := maxf(0.0, sin(x * 0.031 + z * 0.018) * cos(z * 0.027 - x * 0.012)) * 13.0
+	var clearing := clampf(1.0 - Vector2(x, z - 8.0).length() / 46.0, 0.0, 1.0)
+	var valley_floor := rolling * (1.0 - mountain_mask * 0.45)
+	var mountain_height := (ridges + peaks + rolling * 0.6) * mountain_mask
+	return (valley_floor + mountain_height) * (1.0 - clearing * 0.96)
 
 func _build_world() -> void:
 	var world_env := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.48, 0.68, 0.82)
+	env.background_color = Color(0.39, 0.59, 0.72)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.72, 0.80, 0.91)
-	env.ambient_light_energy = 0.9
+	env.ambient_light_color = Color(0.66, 0.75, 0.82)
+	env.ambient_light_energy = 0.82
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.fog_enabled = true
+	env.fog_light_color = Color(0.62, 0.72, 0.76)
+	env.fog_density = 0.0018
 	env.volumetric_fog_enabled = false
-	# Volumetric fog is unsupported by the Android GL Compatibility renderer.
 	world_env.environment = env
 	add_child(world_env)
 
 	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-48, -32, 0)
-	sun.light_energy = 1.25
+	sun.name = "WorldSun"
+	sun.rotation_degrees = Vector3(-42, -28, 0)
+	sun.light_energy = 1.15
+	sun.light_color = Color(1.0, 0.91, 0.76)
 	sun.shadow_enabled = true
 	add_child(sun)
 
 	_build_terrain()
+	_build_water_features()
+	_build_foliage_and_rocks()
 	_build_resource_system()
 	_build_clouds()
 
@@ -101,9 +116,9 @@ func _build_terrain() -> void:
 	surface.generate_normals()
 	var terrain_mesh := surface.commit()
 	var terrain := MeshInstance3D.new()
-	terrain.name = "LargeCollidableTerrain"
+	terrain.name = "SculptedOpenWorldTerrain"
 	terrain.mesh = terrain_mesh
-	var grass_material := ShaderMaterial.new()
+	var terrain_material := ShaderMaterial.new()
 	var terrain_shader := Shader.new()
 	terrain_shader.code = """
 shader_type spatial;
@@ -121,25 +136,25 @@ float noise2(vec2 p) {
 		mix(hash(i+vec2(0.0,1.0)), hash(i+vec2(1.0,1.0)), f.x), f.y);
 }
 void fragment() {
-	vec2 p = world_pos.xz * 0.075;
-	float n = noise2(p) * 0.55 + noise2(p * 3.7) * 0.30 + noise2(p * 11.0) * 0.15;
-	float patches = noise2(world_pos.xz * 0.018);
-	vec3 grass = mix(vec3(0.16,0.18,0.11), vec3(0.28,0.25,0.16), n);
-	vec3 earth = vec3(0.27,0.22,0.14);
-	vec3 stone = vec3(0.30,0.31,0.29);
-	float dirt_mask = smoothstep(0.66,0.82, patches);
-	float rock_mask = smoothstep(0.77,0.92, noise2(world_pos.xz * 0.035 + 17.0));
-	vec3 col = mix(grass, earth, dirt_mask * 0.72);
-	col = mix(col, stone, rock_mask * 0.28);
-	ALBEDO = col;
-	ROUGHNESS = 0.96;
+	vec2 p = world_pos.xz * 0.085;
+	float grain = noise2(p) * 0.55 + noise2(p * 3.1) * 0.30 + noise2(p * 8.7) * 0.15;
+	float patches = noise2(world_pos.xz * 0.021);
+	float altitude = clamp(world_pos.y / 58.0, 0.0, 1.0);
+	vec3 grass = mix(vec3(0.105,0.17,0.105), vec3(0.22,0.29,0.16), grain);
+	vec3 soil = mix(vec3(0.22,0.17,0.105), vec3(0.34,0.26,0.16), grain);
+	vec3 rock = mix(vec3(0.25,0.27,0.26), vec3(0.43,0.42,0.37), grain);
+	float dirt_mask = smoothstep(0.68,0.84,patches) * 0.62;
+	float rock_mask = smoothstep(0.35,0.78,altitude) * 0.82;
+	vec3 color = mix(grass, soil, dirt_mask);
+	color = mix(color, rock, rock_mask);
+	ALBEDO = color;
+	ROUGHNESS = 0.94;
 }
 """
-	grass_material.shader = terrain_shader
-	terrain.material_override = grass_material
+	terrain_material.shader = terrain_shader
+	terrain.material_override = terrain_material
 	add_child(terrain)
-	# Explicit static concave collision, built from the exact visible terrain triangles.
-	# This avoids relying on an automatically generated collision child.
+
 	var terrain_body := StaticBody3D.new()
 	terrain_body.name = "TerrainStaticCollision"
 	var terrain_collision := CollisionShape3D.new()
@@ -149,17 +164,126 @@ void fragment() {
 	terrain_body.add_child(terrain_collision)
 	add_child(terrain_body)
 
-	# A broad, readable dirt trail through the starting region.
-	var path_mesh := BoxMesh.new()
-	path_mesh.size = Vector3(10.0, 0.10, 170.0)
-	var trail := MeshInstance3D.new()
-	trail.mesh = path_mesh
-	var trail_mat := StandardMaterial3D.new()
-	trail_mat.albedo_color = Color(0.34, 0.28, 0.19)
-	trail_mat.roughness = 1.0
-	trail.material_override = trail_mat
-	trail.position = Vector3(0, 0.10, -42)
-	add_child(trail)
+	# A dirt road follows the valley floor instead of floating above a flat plane.
+	var road_surface := SurfaceTool.new()
+	road_surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for step in range(42):
+		var z0 := -WORLD_HALF_SIZE + float(step) * 10.0
+		var z1 := z0 + 10.0
+		var curve0 := sin(z0 * 0.012) * 3.5
+		var curve1 := sin(z1 * 0.012) * 3.5
+		var left0 := Vector3(curve0 - 3.2, _terrain_height(curve0 - 3.2, z0) + 0.07, z0)
+		var right0 := Vector3(curve0 + 3.2, _terrain_height(curve0 + 3.2, z0) + 0.07, z0)
+		var left1 := Vector3(curve1 - 3.2, _terrain_height(curve1 - 3.2, z1) + 0.07, z1)
+		var right1 := Vector3(curve1 + 3.2, _terrain_height(curve1 + 3.2, z1) + 0.07, z1)
+		road_surface.add_vertex(left0)
+		road_surface.add_vertex(left1)
+		road_surface.add_vertex(right0)
+		road_surface.add_vertex(right0)
+		road_surface.add_vertex(left1)
+		road_surface.add_vertex(right1)
+	road_surface.generate_normals()
+	var road := MeshInstance3D.new()
+	road.name = "WindingDirtRoad"
+	road.mesh = road_surface.commit()
+	var road_material := StandardMaterial3D.new()
+	road_material.albedo_color = Color(0.34, 0.27, 0.17)
+	road_material.roughness = 1.0
+	road.material_override = road_material
+	add_child(road)
+
+func _build_water_features() -> void:
+	var water_material := StandardMaterial3D.new()
+	water_material.albedo_color = Color(0.10, 0.31, 0.39, 0.82)
+	water_material.metallic = 0.12
+	water_material.roughness = 0.16
+	water_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	water_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var lake_mesh := PlaneMesh.new()
+	lake_mesh.size = Vector2(58.0, 42.0)
+	var lake := MeshInstance3D.new()
+	lake.name = "EmeraldLake"
+	lake.mesh = lake_mesh
+	lake.material_override = water_material
+	lake.position = Vector3(86.0, _terrain_height(86.0, -82.0) + 0.12, -82.0)
+	add_child(lake)
+
+	# A narrow river winds through the lowland; each segment follows local terrain height.
+	var river_material := StandardMaterial3D.new()
+	river_material.albedo_color = Color(0.12, 0.36, 0.43, 0.86)
+	river_material.roughness = 0.2
+	river_material.metallic = 0.08
+	river_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	for i in range(18):
+		var z := -150.0 + float(i) * 17.0
+		var x := -68.0 + sin(z * 0.018) * 22.0
+		var segment := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(5.5, 0.12, 18.0)
+		segment.mesh = mesh
+		segment.material_override = river_material
+		segment.position = Vector3(x, _terrain_height(x, z) + 0.10, z)
+		segment.rotation.y = cos(z * 0.018) * 0.22
+		add_child(segment)
+
+func _build_foliage_and_rocks() -> void:
+	var trunk_mesh := CylinderMesh.new()
+	trunk_mesh.top_radius = 0.24
+	trunk_mesh.bottom_radius = 0.38
+	trunk_mesh.height = 4.8
+	var trunk_material := StandardMaterial3D.new()
+	trunk_material.albedo_color = Color(0.22, 0.13, 0.075)
+	trunk_material.roughness = 1.0
+	var crown_mesh := SphereMesh.new()
+	crown_mesh.radius = 1.0
+	crown_mesh.height = 2.0
+	var crown_material := StandardMaterial3D.new()
+	crown_material.albedo_color = Color(0.10, 0.24, 0.12)
+	crown_material.roughness = 1.0
+	var pine_mesh := ConeMesh.new()
+	pine_mesh.bottom_radius = 1.35
+	pine_mesh.height = 3.6
+	var pine_material := StandardMaterial3D.new()
+	pine_material.albedo_color = Color(0.075, 0.19, 0.13)
+	pine_material.roughness = 1.0
+	var trunk_transforms: Array[Transform3D] = []
+	var crown_transforms: Array[Transform3D] = []
+	var pine_transforms: Array[Transform3D] = []
+	var rock_mesh := SphereMesh.new()
+	rock_mesh.radius = 1.0
+	rock_mesh.height = 1.5
+	var rock_material := StandardMaterial3D.new()
+	rock_material.albedo_color = Color(0.31, 0.33, 0.32)
+	rock_material.roughness = 0.98
+	var rock_transforms: Array[Transform3D] = []
+	for i in range(230):
+		var x := rng.randf_range(-WORLD_HALF_SIZE + 10.0, WORLD_HALF_SIZE - 10.0)
+		var z := rng.randf_range(-WORLD_HALF_SIZE + 10.0, WORLD_HALF_SIZE - 10.0)
+		if Vector2(x, z - 8.0).length() < 48.0:
+			continue
+		if Vector2(x - 86.0, z + 82.0).length() < 34.0:
+			continue
+		if absf(x + 68.0 - sin(z * 0.018) * 22.0) < 8.0:
+			continue
+		var ground := _terrain_height(x, z)
+		if ground > 34.0:
+			continue
+		var yaw_angle := rng.randf_range(0.0, TAU)
+		var trunk_scale := rng.randf_range(0.72, 1.3)
+		trunk_transforms.append(Transform3D(Basis(Vector3.UP, yaw_angle).scaled(Vector3(trunk_scale, trunk_scale, trunk_scale)), Vector3(x, ground + 2.4 * trunk_scale, z)))
+		var crown_scale := rng.randf_range(2.0, 3.4)
+		var crown_pos := Vector3(x, ground + 5.0 * trunk_scale, z)
+		if i % 3 == 0:
+			pine_transforms.append(Transform3D(Basis(Vector3.UP, yaw_angle).scaled(Vector3(crown_scale * 0.72, crown_scale, crown_scale * 0.72)), crown_pos))
+		else:
+			crown_transforms.append(Transform3D(Basis(Vector3.UP, yaw_angle).scaled(Vector3(crown_scale, crown_scale * 0.82, crown_scale)), crown_pos))
+		if i % 4 == 0:
+			var rock_size := rng.randf_range(0.7, 2.0)
+			rock_transforms.append(Transform3D(Basis(Vector3.UP, yaw_angle).scaled(Vector3(rock_size, rock_size * 0.7, rock_size * 0.9)), Vector3(x + rng.randf_range(-5.0,5.0), ground + rock_size * 0.38, z + rng.randf_range(-5.0,5.0))))
+	_add_multimesh(trunk_mesh, trunk_material, trunk_transforms, "ForestTreeTrunks")
+	_add_multimesh(crown_mesh, crown_material, crown_transforms, "BroadleafCanopies")
+	_add_multimesh(pine_mesh, pine_material, pine_transforms, "PineCanopies")
+	_add_multimesh(rock_mesh, rock_material, rock_transforms, "ScatteredBoulders")
 
 func _build_clouds() -> void:
 	# Soft, layered cloud banks at several heights and scales.
