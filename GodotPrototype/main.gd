@@ -683,9 +683,15 @@ func _reset_joystick() -> void:
 		joystick_knob.position = Vector2(46, 46)
 
 func _attack() -> void:
+	if hero_attack_timer > 0.0:
+		return
 	hero_attack_timer = 0.62
 	_play_model_animation(hero_animation_players, ["attack", "slash", "hit", "combat"], true)
-	info_label.text = "Кайрон наносит удар!"
+	var wildlife := get_node_or_null("LivingWildlifeAndDragon")
+	var hit := false
+	if wildlife != null and wildlife.has_method("damage_nearest_dragon"):
+		hit = bool(wildlife.call("damage_nearest_dragon", player.global_position, -player.global_transform.basis.z, 7.0, 25.0))
+	info_label.text = "Попадание по дракону!" if hit else "Кайрон наносит удар!"
 
 func _jump() -> void:
 	hero_jump_buffer = 0.18
