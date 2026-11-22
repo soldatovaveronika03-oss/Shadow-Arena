@@ -21,11 +21,36 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Java for Android export
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android export packages
+        run: sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+
       - name: Prepare project, integrate GLB animals and export APK
         run: |
           python3 prepare_android.py
+          mkdir -p "$HOME/.config/godot"
+          cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+          [resource]
+          export/android/android_sdk_path = "$ANDROID_HOME"
+          export/android/java_sdk_path = "$JAVA_HOME"
+          EOF
           docker run --rm \
+            -e HOME=/root \
+            -e ANDROID_HOME=/opt/android-sdk \
+            -e JAVA_HOME=/opt/java/openjdk \
             -v "$GITHUB_WORKSPACE:/workspace" \
+            -v "$ANDROID_HOME:/opt/android-sdk" \
+            -v "$JAVA_HOME:/opt/java/openjdk" \
+            -v "$HOME/.config/godot:/root/.config/godot" \
             -w /workspace \
             barichello/godot-ci:4.2.2 \
             bash -lc '
