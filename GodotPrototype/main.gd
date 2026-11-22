@@ -102,6 +102,12 @@ func _build_world() -> void:
 	_build_generated_tree_landmarks()
 	_build_resource_system()
 	_build_clouds()
+	var wildlife_script := load("res://wildlife_system.gd") as Script
+	if wildlife_script != null:
+		var wildlife := Node3D.new()
+		wildlife.set_script(wildlife_script)
+		wildlife.name = "LivingWildlifeAndDragon"
+		add_child(wildlife)
 	var landmarks_script := load("res://world_features.gd") as Script
 	if landmarks_script != null:
 		var landmarks := Node3D.new()
