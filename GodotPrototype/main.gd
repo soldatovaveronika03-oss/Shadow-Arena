@@ -170,44 +170,14 @@ func _build_terrain() -> void:
 	var terrain := MeshInstance3D.new()
 	terrain.name = "SculptedOpenWorldTerrain"
 	terrain.mesh = terrain_mesh
-	var terrain_material := ShaderMaterial.new()
-	var terrain_shader := Shader.new()
-	terrain_shader.code = """
-shader_type spatial;
-render_mode diffuse_burley, specular_schlick_ggx;
-varying vec3 world_pos;
-void vertex() {
-	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-}
-float hash(vec2 p) {
-	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-}
-float noise2(vec2 p) {
-	vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f);
-	return mix(mix(hash(i), hash(i+vec2(1.0,0.0)), f.x), mix(hash(i+vec2(0.0,1.0)), hash(i+vec2(1.0,1.0)), f.x), f.y);
-}
-void fragment() {
-	vec2 p = world_pos.xz * 0.12;
-	float grain = noise2(p) * 0.48 + noise2(p * 2.7) * 0.31 + noise2(p * 8.2) * 0.21;
-	float broad = noise2(world_pos.xz * 0.018);
-	float altitude = clamp((world_pos.y + 5.0) / 76.0, 0.0, 1.0);
-	float slope = 1.0 - clamp(NORMAL.y, 0.0, 1.0);
-	vec3 meadow = mix(vec3(0.075,0.145,0.075), vec3(0.19,0.30,0.12), grain);
-	vec3 loam = mix(vec3(0.19,0.135,0.075), vec3(0.32,0.235,0.13), grain);
-	vec3 stone = mix(vec3(0.20,0.22,0.21), vec3(0.43,0.42,0.36), grain);
-	vec3 alpine = mix(vec3(0.34,0.38,0.36), vec3(0.62,0.64,0.59), grain);
-	float soil_mask = smoothstep(0.61,0.79,broad) * 0.72;
-	float cliff_mask = smoothstep(0.22,0.62,slope);
-	float high_mask = smoothstep(0.52,0.82,altitude);
-	vec3 color = mix(meadow, loam, soil_mask);
-	color = mix(color, stone, max(cliff_mask, high_mask * 0.68));
-	color = mix(color, alpine, smoothstep(0.86,0.98,altitude) * 0.62);
-	float mottling = (noise2(world_pos.xz * 0.9) - 0.5) * 0.055;
-	ALBEDO = max(color + vec3(mottling), vec3(0.015));
-	ROUGHNESS = mix(0.98, 0.78, cliff_mask * 0.45);
-}
-"""
-	terrain_material.shader = terrain_shader
+	# Stable opaque material for the mobile GL Compatibility renderer.
+	# Avoid custom world-position shader paths until device screenshots confirm support.
+	var terrain_material := StandardMaterial3D.new()
+	terrain_material.albedo_color = Color(0.16, 0.27, 0.105, 1.0)
+	terrain_material.roughness = 1.0
+	terrain_material.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+	terrain_material.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
+	terrain_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	terrain.material_override = terrain_material
 	add_child(terrain)
 
@@ -249,77 +219,22 @@ void fragment() {
 	add_child(road)
 
 func _build_water_features() -> void:
-	var water_shader := Shader.new()
-	water_shader.code = """
-shader_type spatial;
-render_mode blend_mix, depth_draw_opaque, cull_disabled, diffuse_burley, specular_schlick_ggx;
-void fragment() {
-	vec2 uv = UV * 2.0 - 1.0;
-	float edge = length(uv);
-	if (edge > 1.0) discard;
-	float wave_a = sin(UV.x * 38.0 + TIME * 1.25) * 0.018;
-	float wave_b = cos(UV.y * 31.0 - TIME * 0.92) * 0.016;
-	float ripple = sin((UV.x + UV.y) * 78.0 + TIME * 2.0) * 0.012;
-	float fresnel = pow(1.0 - clamp(abs(NORMAL.y), 0.0, 1.0), 2.0);
-	ALBEDO = mix(vec3(0.045,0.22,0.28), vec3(0.22,0.48,0.55), 0.35 + fresnel * 0.55 + wave_a + wave_b + ripple);
-	METALLIC = 0.18;
-	ROUGHNESS = 0.12 + edge * 0.12;
-	SPECULAR = 0.85;
-	ALPHA = 0.82;
-}
-"""
-	var water_material := ShaderMaterial.new()
-	water_material.shader = water_shader
+	# Use opaque-compatible StandardMaterial water while world geometry is being repaired.
+	# Transparent custom shaders and generated UV-less river triangles are disabled.
+	var water_material := StandardMaterial3D.new()
+	water_material.albedo_color = Color(0.10, 0.31, 0.39, 1.0)
+	water_material.roughness = 0.28
+	water_material.metallic = 0.04
+	water_material.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+	water_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	var lake_mesh := PlaneMesh.new()
 	lake_mesh.size = Vector2(58.0, 42.0)
-	lake_mesh.subdivide_width = 36
-	lake_mesh.subdivide_depth = 28
 	var lake := MeshInstance3D.new()
 	lake.name = "EmeraldLake"
 	lake.mesh = lake_mesh
 	lake.material_override = water_material
-	lake.position = Vector3(86.0, _terrain_height(86.0, -82.0) + 3.2, -82.0)
+	lake.position = Vector3(86.0, _terrain_height(86.0, -82.0) + 0.18, -82.0)
 	add_child(lake)
-
-	var river_surface := SurfaceTool.new()
-	river_surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for i in range(72):
-		var z0 := -190.0 + float(i) * 5.25
-		var z1 := z0 + 5.25
-		var x0 := -68.0 + sin(z0 * 0.018) * 22.0
-		var x1 := -68.0 + sin(z1 * 0.018) * 22.0
-		var width0 := 2.0 + 0.55 * (0.5 + 0.5 * sin(z0 * 0.047))
-		var width1 := 2.0 + 0.55 * (0.5 + 0.5 * sin(z1 * 0.047))
-		var l0 := Vector3(x0 - width0, _terrain_height(x0 - width0, z0) + 0.16, z0)
-		var r0 := Vector3(x0 + width0, _terrain_height(x0 + width0, z0) + 0.16, z0)
-		var l1 := Vector3(x1 - width1, _terrain_height(x1 - width1, z1) + 0.16, z1)
-		var r1 := Vector3(x1 + width1, _terrain_height(x1 + width1, z1) + 0.16, z1)
-		river_surface.add_vertex(l0)
-		river_surface.add_vertex(l1)
-		river_surface.add_vertex(r0)
-		river_surface.add_vertex(r0)
-		river_surface.add_vertex(l1)
-		river_surface.add_vertex(r1)
-	river_surface.generate_normals()
-	var river_shader := Shader.new()
-	river_shader.code = """
-shader_type spatial;
-render_mode blend_mix, cull_disabled;
-void fragment() {
-	float current = sin(UV.y * 80.0 - TIME * 2.4) * 0.04 + cos(UV.x * 34.0 + TIME) * 0.025;
-	ALBEDO = vec3(0.075,0.31,0.39) + vec3(current);
-	METALLIC = 0.16;
-	ROUGHNESS = 0.16;
-	ALPHA = 0.86;
-}
-"""
-	var river_material := ShaderMaterial.new()
-	river_material.shader = river_shader
-	var river := MeshInstance3D.new()
-	river.name = "WindingRiverWater"
-	river.mesh = river_surface.commit()
-	river.material_override = river_material
-	add_child(river)
 
 func _build_foliage_and_rocks() -> void:
 	var rock_mesh := SphereMesh.new()
