@@ -25,6 +25,7 @@ jobs:
           mkdir -p GodotPrototype/assets
           blender -b -t 2 --python Blender/create_atlas_dragon.py
           test -s /tmp/atlas_dragon.glb
+          test -s /tmp/atlas_dragon.blend
           cp /tmp/atlas_dragon.glb GodotPrototype/assets/atlas_dragon.glb
       - name: Commit generated GLB
         run: |
@@ -41,5 +42,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: atlas-dragon-glb
-          path: GodotPrototype/assets/atlas_dragon.glb
+          path: |
+            GodotPrototype/assets/atlas_dragon.glb
+            /tmp/atlas_dragon.blend
           if-no-files-found: error
