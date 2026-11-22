@@ -60,7 +60,7 @@ if "var using_glb := false" not in q:
 \t\t\tvar imported := packed.instantiate() as Node3D
 \t\t\tif imported != null:
 \t\t\t\tadd_child(imported)
-\t\t\tbody = imported
+\t\t\t\tbody = imported
 \t\t\t\t_fit_imported_model(imported, float(model_info[1]))
 \t\t\t\tbase_y = imported.position.y
 \t\t\t\t_play_imported_idle(imported)
