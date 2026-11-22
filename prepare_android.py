@@ -51,16 +51,16 @@ for model_name in source_assets.values():
     model_path = ASSETS / model_name
     import_settings = model_path.with_name(model_path.name + ".import")
     import_settings.write_text(
-        '[remap]\\n'
-        'importer="scene"\\n'
-        'importer_version=1\\n'
-        'type="PackedScene"\\n'
-        '\\n'
-        '[deps]\\n'
-        f'source_file="res://assets/{model_name}"\\n'
-        '\\n'
-        '[params]\\n'
-        'meshes/generate_lods=false\\n',
+        '[remap]\n'
+        'importer="scene"\n'
+        'importer_version=1\n'
+        'type="PackedScene"\n'
+        '\n'
+        '[deps]\n'
+        f'source_file="res://assets/{model_name}"\n'
+        '\n'
+        '[params]\n'
+        'meshes/generate_lods=false\n',
         encoding="utf-8",
     )
 print("Disabled import-time LOD generation for saved animal models")
