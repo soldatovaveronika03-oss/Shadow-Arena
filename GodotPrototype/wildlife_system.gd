@@ -11,8 +11,7 @@ var world_time := 0.0
 func _ready() -> void:
 	rng.seed = 731904
 	player = get_parent().get_node_or_null("Kairon") as Node3D
-	_spawn_wildlife()
-	_spawn_birds()
+	# Keep only the original dragon; disable all other animal models.
 	_spawn_dragon()
 	_build_wind_foliage()
 
