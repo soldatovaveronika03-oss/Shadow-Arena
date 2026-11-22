@@ -12,6 +12,7 @@ func _ready() -> void:
 	rng.seed = 731904
 	player = get_parent().get_node_or_null("Kairon") as Node3D
 	_spawn_wildlife()
+	_spawn_birds()
 	_spawn_dragon()
 	_build_wind_foliage()
 
@@ -95,7 +96,8 @@ func _spawn_wildlife() -> void:
 	var types := [
 		{"kind": "ForestDeer", "color": Color(0.48, 0.25, 0.12), "count": 8},
 		{"kind": "GreyWolf", "color": Color(0.28, 0.32, 0.34), "count": 6},
-		{"kind": "WildBoar", "color": Color(0.25, 0.16, 0.12), "count": 5}
+		{"kind": "WildBoar", "color": Color(0.25, 0.16, 0.12), "count": 5},
+		{"kind": "BrownBear", "color": Color(0.20, 0.12, 0.075), "count": 4}
 	]
 	for entry in types:
 		for i in range(int(entry.count)):
@@ -105,6 +107,8 @@ func _spawn_wildlife() -> void:
 				x += 52.0
 			var data := _make_quadruped(String(entry.kind), entry.color)
 			var root: Node3D = data.root
+			if String(entry.kind) == "BrownBear":
+				root.scale = Vector3.ONE * 1.65
 			root.position = Vector3(x, _ground(x, z), z)
 			root.rotation.y = rng.randf_range(-PI, PI)
 			add_child(root)
@@ -203,6 +207,43 @@ func _build_wind_foliage() -> void:
 			blade.rotation.z = rng.randf_range(-0.5, 0.5)
 		wind_parts.append({"node": clump, "phase": rng.randf_range(0.0, TAU), "strength": 0.10})
 
+func _spawn_birds() -> void:
+	var body_mat := _mat(Color(0.16, 0.20, 0.22), 0.82)
+	var wing_mat := _mat(Color(0.10, 0.14, 0.17), 0.9)
+	for i in range(14):
+		var root := Node3D.new()
+		root.name = "WildSkyBird_%02d" % i
+		_sphere(root, "BirdBody", body_mat, Vector3.ZERO, Vector3(0.18, 0.13, 0.34))
+		_sphere(root, "BirdHead", body_mat, Vector3(0, 0.04, -0.25), Vector3(0.13, 0.12, 0.14))
+		var wings: Array[Node3D] = []
+		for side in [-1.0, 1.0]:
+			var pivot := Node3D.new()
+			pivot.position = Vector3(side * 0.12, 0.02, 0)
+			root.add_child(pivot)
+			var feather := _capsule(pivot, "WingFeather", wing_mat, Vector3(side * 0.32, 0, 0), 0.07, 0.78)
+			feather.rotation.z = side * 1.15
+			wings.append(pivot)
+		var center := Vector3(rng.randf_range(-130.0, 130.0), rng.randf_range(24.0, 42.0), rng.randf_range(-130.0, 130.0))
+		root.position = center
+		add_child(root)
+		creatures.append({"root": root, "kind": "SkyBird", "wings": wings, "phase": rng.randf_range(0.0, TAU), "center": center, "radius": rng.randf_range(7.0, 20.0), "speed": rng.randf_range(0.35, 0.8)})
+
+func _update_bird(data: Dictionary, delta: float, phase: float) -> void:
+	var root: Node3D = data.root
+	var center: Vector3 = data.center
+	var angle := phase * float(data.speed) * 0.22 + float(data.phase) * 0.2
+	var radius := float(data.radius)
+	var next_position := center + Vector3(cos(angle) * radius, sin(angle * 1.7) * 2.0, sin(angle) * radius)
+	var direction := next_position - root.position
+	root.position = root.position.lerp(next_position, minf(delta * 1.8, 1.0))
+	if direction.length() > 0.01:
+		root.rotation.y = lerp_angle(root.rotation.y, atan2(-direction.x, -direction.z), minf(delta * 2.0, 1.0))
+	var wings: Array = data.wings
+	for i in range(wings.size()):
+		var side := -1.0 if i == 0 else 1.0
+		var wing: Node3D = wings[i]
+		wing.rotation.z = side * (0.15 + sin(phase * 8.0 + float(data.phase)) * 0.72)
+
 func _choose_target(data: Dictionary) -> void:
 	var home: Vector3 = data.home
 	data.target = home + Vector3(rng.randf_range(-24.0, 24.0), 0.0, rng.randf_range(-24.0, 24.0))
@@ -226,14 +267,17 @@ func _process(delta: float) -> void:
 		if kind == "Dragon":
 			_update_dragon(data, delta, phase)
 			continue
+		if kind == "SkyBird":
+			_update_bird(data, delta, phase)
+			continue
 		data.think = float(data.think) - delta
 		var distance_to_player := 9999.0
 		if player != null:
 			distance_to_player = root.global_position.distance_to(player.global_position)
-		if kind == "GreyWolf" and distance_to_player < 17.0:
+		if kind in ["GreyWolf", "BrownBear"] and distance_to_player < (22.0 if kind == "BrownBear" else 17.0):
 			data.state = "hunt"
 			data.target = player.global_position
-		elif kind != "GreyWolf" and distance_to_player < 13.0:
+		elif kind != "GreyWolf" and kind != "BrownBear" and distance_to_player < 13.0:
 			data.state = "flee"
 			var away := (root.global_position - player.global_position).normalized()
 			data.target = root.global_position + away * 28.0
@@ -243,7 +287,7 @@ func _process(delta: float) -> void:
 		var flat := Vector3(target.x - root.global_position.x, 0, target.z - root.global_position.z)
 		if flat.length() > 1.4:
 			moving = true
-			var speed := float(data.speed) * (1.55 if String(data.state) in ["flee", "hunt"] else 0.62)
+			var speed := float(data.speed) * (1.55 if String(data.state) in ["flee", "hunt"] else 0.62) * (1.25 if kind == "BrownBear" else 1.0)
 			root.position += flat.normalized() * speed * delta
 			root.rotation.y = lerp_angle(root.rotation.y, atan2(-flat.x, -flat.z), minf(delta * 4.0, 1.0))
 		else:
