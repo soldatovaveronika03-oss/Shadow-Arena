@@ -1,4 +1,4 @@
-name: Build ATLAS WILDS Godot Android APK — Castle Terrace Validation
+name: Build ATLAS WILDS Godot Android APK
 
 on:
   workflow_dispatch:
@@ -8,6 +8,10 @@ on:
       - "GodotPrototype/**"
       - ".github/workflows/build-godot-android.yml"
       - "assets/**"
+
+concurrency:
+  group: atlas-wilds-android-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
