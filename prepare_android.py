@@ -27,7 +27,7 @@ icon_png = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0l
 project_settings = PROJECT / "project.godot"
 project_text = project_settings.read_text(encoding="utf-8")
 if "config/icon=" not in project_text:
-    project_text = project_text.replace("[application]\\n", "[application]\\nconfig/icon=\\"res://icon.png\\"\\n", 1)
+    project_text = project_text.replace("[application]", "[application]" + chr(10) + 'config/icon="res://icon.png"' + chr(10), 1)
     project_settings.write_text(project_text, encoding="utf-8")
 
 ASSETS = PROJECT / "assets"
