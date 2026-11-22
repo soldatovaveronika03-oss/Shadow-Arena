@@ -408,7 +408,7 @@ func _build_models() -> void:
 		Vector3(62.0, 0.0, -122.0),
 		Vector3(0.0, 0.0, -188.0)
 	]
-	var dragon_path := "res://assets/bdd1f502-bdb6-4287-8d2c-7799487a4999.glb"
+	var dragon_path := "res://assets/atlas_dragon.glb"
 	for i in range(dragon_sizes.size()):
 		_spawn_creature(dragon_path, true, dragon_sizes[i], dragon_spawns[i], "Dragon_" + str(i + 1))
 
