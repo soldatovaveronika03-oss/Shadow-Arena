@@ -42,6 +42,7 @@ var resource_nodes: Array[Dictionary] = []
 var inventory_label: Label
 var resource_hint_label: Label
 
+func _ready() -> void:
 	# Run procedural fallback posing after imported AnimationPlayers update.
 	process_priority = 100
 	rng.seed = 482019
