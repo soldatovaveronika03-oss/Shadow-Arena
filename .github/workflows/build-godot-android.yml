@@ -54,13 +54,20 @@ jobs:
 
       - name: Audit imported GLB rigs and animation clips
         run: |
-          set -o pipefail
-          godot --headless --path GodotPrototype --script res://audit_models.gd 2>&1 | tee /tmp/model-audit.log
-          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" /tmp/model-audit.log; then
+          if ! godot --headless --path GodotPrototype --script res://audit_models.gd > /tmp/model-audit.log 2>&1; then
+            cat /tmp/model-audit.log
             echo "GLB rig audit failed."
             exit 1
           fi
-          grep "MODEL_AUDIT|" /tmp/model-audit.log
+          cat /tmp/model-audit.log
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" /tmp/model-audit.log; then
+            echo "GLB rig audit reported script errors."
+            exit 1
+          fi
+          if ! grep "MODEL_AUDIT|" /tmp/model-audit.log; then
+            echo "GLB rig audit produced no model results."
+            exit 1
+          fi
 
       - name: Export Android APK
         run: |
