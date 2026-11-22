@@ -1,4 +1,4 @@
-name: Build ATLAS WILDS Godot Android APK
+name: Build ATLAS WILDS Godot Android APK — Castle Terrace Validation
 
 on:
   workflow_dispatch:
